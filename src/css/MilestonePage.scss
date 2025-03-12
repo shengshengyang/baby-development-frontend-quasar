@@ -1,0 +1,115 @@
+/* MilestonePage.scss */
+.milestone-page {
+  background-color: #FAFAFA;
+  min-height: 100vh;
+}
+
+.page-header {
+  text-align: center;
+  padding: 1rem 0 2rem;
+}
+
+.age-filter {
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.category-title {
+  color: #5E412F;
+  border-bottom: 2px solid #F0C8A0;
+  padding-bottom: 0.5rem;
+}
+
+.milestone-cards-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.milestone-card {
+  width: 300px;
+  height: 350px;
+  perspective: 1000px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.milestone-card:hover {
+  transform: translateY(-5px);
+}
+
+.milestone-card.achieved {
+  border: 3px solid #4CAF50;
+}
+
+.milestone-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.8s;
+  transform-style: preserve-3d;
+}
+
+.milestone-card-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+.milestone-front, .milestone-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.milestone-front {
+  background-color: white;
+}
+
+.milestone-back {
+  background-color: #F9F9F9;
+  transform: rotateY(180deg);
+  justify-content: space-between;
+}
+
+.milestone-image {
+  position: relative;
+  height: 180px;
+}
+
+.milestone-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.age-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.milestone-content {
+  flex-grow: 1;
+}
+
+.milestone-checkbox {
+  margin-top: auto;
+}
+
+.milestone-back-content {
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.no-milestones {
+  color: #757575;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
