@@ -4,7 +4,6 @@
       <q-card class="login-card">
         <!-- 卡片上方 Logo 與標題 -->
         <q-card-section class="text-center card-header">
-          <!-- 可自行更換路徑為寶寶相關圖片 -->
           <q-img src="~assets/baby-logo.png" class="logo" contain />
           <div class="card-title">寶寶發展檢測</div>
         </q-card-section>
@@ -54,9 +53,10 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiPost } from 'src/api/apiHelper'
+import { useUserStore } from 'src/stores/user'
 
-// 使用 Vue Router 的 useRouter 組合式函數獲取路由實例
 const router = useRouter()
+const userStore = useUserStore()
 
 const email = ref('')
 const password = ref('')
@@ -85,7 +85,10 @@ async function onLogin() {
     const result = await apiPost<LoginResponse>('/auth/login', { email: email.value, password: password.value });
     console.log('登入成功:', result);
 
-    // 直接使用 router 進行導航
+    // 將返回的使用者資料儲存到 Pinia 全域 store 中
+    userStore.setUser(result)
+
+    // 導航至 milestone 頁面
     router.push('/milestone').catch(err => {
       if (err.name !== 'NavigationDuplicated') {
         console.error('導航錯誤:', err);
@@ -115,7 +118,7 @@ function onRegister() {
 
 <style scoped>
 .auth-page {
-  background-color: #FFF6F0; /* 溫馨的淡粉背景 */
+  background-color: #FFF6F0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -145,7 +148,7 @@ function onRegister() {
 }
 
 .card-title {
-  font-family: 'Bubblegum Sans', cursive; /* 若有引入此字體 */
+  font-family: 'Bubblegum Sans', cursive;
   font-size: 24px;
   color: #5E412F;
   margin-top: 8px;
