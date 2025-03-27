@@ -145,15 +145,29 @@ onMounted(async () => {
     console.error('Error fetching flash-card data:', error);
   }
 });
-// 年齡分組定義
-const ageGroups: AgeGroup[] = [
-  { label: '全部', value: null },
-  { label: '0-6 個月', value: [0, 6] },
-  { label: '7-12 個月', value: [7, 12] },
-  { label: '13-18 個月', value: [13, 18] },
-  { label: '19-24 個月', value: [19, 24] },
-  { label: '24+ 個月', value: [25, 100] },
-];
+
+// 根據實際里程碑資料動態生成年齡選項
+const ageGroups = computed((): AgeGroup[] => {
+  // 首先添加「全部」選項
+  const groups: AgeGroup[] = [{ label: '全部', value: null }];
+
+  if (milestones.value.length === 0) {
+    return groups;
+  }
+
+  // 取得所有唯一的月齡，並依照月齡排序
+  const uniqueAges = [...new Set(milestones.value.map((m) => m.ageInMonths))].sort((a, b) => a - b);
+
+  // 為每個實際存在的月齡創建選項
+  uniqueAges.forEach((age) => {
+    groups.push({
+      label: `${age} 個月`,
+      value: [age, age], // 精確匹配此年齡
+    });
+  });
+
+  return groups;
+});
 
 // 4. 邏輯函式
 function flipCard(id: number): void {
@@ -270,4 +284,6 @@ body.body--dark {
 }
 </style>
 
-<style scoped src="../css/MilestonePage.scss"></style>
+<style scoped lang="scss">
+@import '../css/MilestonePage.scss';
+</style>

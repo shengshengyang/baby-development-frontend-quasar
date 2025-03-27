@@ -114,3 +114,42 @@
   justify-content: center;
   min-height: 300px;
 }
+
+// 增強標題字體樣式
+.page-header {
+  h2 {
+    font-family: 'Bubblegum Sans', 'Baloo 2', 'Noto Sans TC', cursive;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  p {
+    font-family: 'Nunito', 'Noto Sans TC', sans-serif;
+    letter-spacing: 0.03em;
+    font-weight: 500;
+  }
+}
+
+// 卡片標題優化
+.milestone-content {
+  .text-h6 {
+    font-family: 'Baloo 2', 'Noto Sans TC', sans-serif;
+    letter-spacing: 0.05em;
+    line-height: 1.4;
+  }
+}
+
+// 年齡標籤優化
+.age-badge {
+  font-family: 'Mochiy Pop One', 'Noto Sans TC', sans-serif;
+  font-weight: normal;
+  letter-spacing: 0.05em;
+}
+
+// 分類標籤優化
+.q-tab {
+  font-family: 'Nunito', 'Noto Sans TC', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}

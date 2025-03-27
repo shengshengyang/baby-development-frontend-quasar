@@ -5,35 +5,18 @@
         <!-- 卡片上方 Logo 與標題 -->
         <q-card-section class="text-center card-header">
           <q-img src="~assets/baby-logo.png" class="logo" contain />
-          <div class="card-title">寶寶發展檢測</div>
+          <div class="card-title">會員登入</div>
         </q-card-section>
 
         <!-- 輸入欄位 -->
         <q-card-section>
-          <q-input
-            filled
-            v-model="email"
-            label="電子信箱"
-            type="email"
-            class="q-mb-md"
-          />
-          <q-input
-            filled
-            v-model="password"
-            label="密碼"
-            type="password"
-            class="q-mb-md"
-          />
+          <q-input v-model="email" label="電子信箱" type="email" class="q-mb-md" />
+          <q-input v-model="password" label="密碼" type="password" class="q-mb-md" />
         </q-card-section>
 
         <!-- 登入按鈕 -->
         <q-card-actions align="center">
-          <q-btn
-            label="登入"
-            color="primary"
-            @click="onLogin"
-            class="full-width"
-          />
+          <q-btn label="登入" color="primary" @click="onLogin" class="full-width" />
         </q-card-actions>
 
         <!-- 忘記密碼 / 註冊連結 -->
@@ -50,16 +33,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { apiPost } from 'src/api/apiHelper'
-import { useUserStore } from 'src/stores/user'
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { apiPost } from 'src/api/apiHelper';
+import { useUserStore } from 'src/stores/user';
 
-const router = useRouter()
-const userStore = useUserStore()
+const router = useRouter();
+const userStore = useUserStore();
 
-const email = ref('')
-const password = ref('')
+const email = ref('');
+const password = ref('');
 
 interface LoginResponse {
   username: string;
@@ -82,14 +65,17 @@ interface LoginResponse {
 
 async function onLogin() {
   try {
-    const result = await apiPost<LoginResponse>('/auth/login', { email: email.value, password: password.value });
+    const result = await apiPost<LoginResponse>('/auth/login', {
+      email: email.value,
+      password: password.value,
+    });
     console.log('登入成功:', result);
 
     // 將返回的使用者資料儲存到 Pinia 全域 store 中
-    userStore.setUser(result)
+    userStore.setUser(result);
 
     // 導航至 milestone 頁面
-    router.push('/milestone').catch(err => {
+    router.push('/milestone').catch((err) => {
       if (err.name !== 'NavigationDuplicated') {
         console.error('導航錯誤:', err);
       }
@@ -100,7 +86,7 @@ async function onLogin() {
 }
 
 function onForgotPassword() {
-  router.push('/auth/forgot-password').catch(err => {
+  router.push('/auth/forgot-password').catch((err) => {
     if (err.name !== 'NavigationDuplicated') {
       console.error('導航錯誤:', err);
     }
@@ -108,7 +94,7 @@ function onForgotPassword() {
 }
 
 function onRegister() {
-  router.push('/auth/register').catch(err => {
+  router.push('/auth/register').catch((err) => {
     if (err.name !== 'NavigationDuplicated') {
       console.error('導航錯誤:', err);
     }
@@ -118,7 +104,7 @@ function onRegister() {
 
 <style scoped>
 .auth-page {
-  background-color: #FFF6F0;
+  background-color: #fff6f0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -134,7 +120,7 @@ function onRegister() {
 .login-card {
   border-radius: 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  background-color: #FFFFFF;
+  background-color: #ffffff;
 }
 
 .card-header {
@@ -148,9 +134,7 @@ function onRegister() {
 }
 
 .card-title {
-  font-family: 'Bubblegum Sans', cursive;
   font-size: 24px;
-  color: #5E412F;
   margin-top: 8px;
 }
 
@@ -166,6 +150,6 @@ function onRegister() {
 
 .separator {
   margin: 0 8px;
-  color: #5E412F;
+  color: #5e412f;
 }
 </style>

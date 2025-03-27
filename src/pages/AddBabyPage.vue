@@ -64,6 +64,9 @@ const saveBaby = async () => {
         birthDate: birthDate.value,
         progresses: [], // 初始進度為空
       });
+
+      // 將新增的寶寶設為預設寶寶
+      userStore.selectBaby(userStore.userData.babies.length - 1);
     }
 
     // 儲存完後導向個人資料頁面
