@@ -1,6 +1,6 @@
 <template>
   <q-page class="q-pa-md">
-    <q-card class="q-ma-auto" style="max-width: 500px;">
+    <q-card class="q-ma-auto" style="max-width: 500px">
       <q-card-section>
         <div class="text-h5 text-center">新增寶寶</div>
       </q-card-section>
@@ -21,42 +21,57 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useUserStore } from 'src/stores/user'
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { apiPost } from 'src/api/apiHelper';
+import { useUserStore } from 'src/stores/user';
 
-const router = useRouter()
-const userStore = useUserStore()
+// 使用者輸入的欄位
+const babyName = ref('');
+const birthDate = ref('');
 
-const babyName = ref('')
-const birthDate = ref('')
+// 路由與全域使用者資料 store
+const router = useRouter();
+const userStore = useUserStore();
 
-// 儲存寶寶資料：這裡示範簡單新增至使用者資料的 babies 陣列，實際應依需求呼叫 API 儲存資料
-const saveBaby = () => {
-  if (!babyName.value || !birthDate.value) {
-    // 簡單驗證
-    alert('請輸入完整資訊')
-    return
-  }
-  // 新增的寶寶資料
-  const newBaby = {
-    name: babyName.value,
-    birthDate: birthDate.value,
-    progresses: []  // 初始無進度
-  }
-
-  // 若 userData 已存在寶寶陣列則新增，否則建立新的陣列
-  if (userStore.userData) {
-    userStore.userData.babies = userStore.userData.babies || []
-    userStore.userData.babies.push(newBaby)
-  }
-
-  // 儲存完後導向個人資料頁面
-  router.push({ name: 'ProfileEdit' }).then(
-    () => alert('新增成功'),
-    () => alert('新增失敗')
-  )
+// 定義後端 API 要求的 Request Body 型別
+interface BabyCreateRequestVo {
+  name: string;
+  birthDate: string;
 }
+
+const saveBaby = async () => {
+  // 基本輸入驗證
+  if (!babyName.value || !birthDate.value) {
+    alert('請輸入完整資訊');
+    return;
+  }
+
+  try {
+    const response = await apiPost<BabyCreateRequestVo>('/baby', {
+      name: babyName.value,
+      birthDate: birthDate.value,
+    });
+
+    console.log('新增寶寶成功:', response);
+
+    // 若後端有回傳新增的寶寶資料，可以直接更新使用者資料
+    if (userStore.userData) {
+      userStore.userData.babies = userStore.userData.babies || [];
+      // 這裡以 requestBody 為例，實際上可能需要使用 response 的資料
+      userStore.userData.babies.push({
+        name: babyName.value,
+        birthDate: birthDate.value,
+        progresses: [], // 初始進度為空
+      });
+    }
+
+    // 儲存完後導向個人資料頁面
+    await router.push({ name: 'ProfileEdit' });
+  } catch (error) {
+    console.error('新增寶寶失敗:', error);
+  }
+};
 </script>
 
 <style scoped>

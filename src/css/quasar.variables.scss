@@ -12,14 +12,37 @@
 // to match your app's branding.
 // Tip: Use the "Theme Builder" on Quasar's documentation website.
 
-$primary   : #1976D2;
-$secondary : #26A69A;
-$accent    : #9C27B0;
+// 寶寶發展 App 主題配色
+// 日間模式柔和溫馨色調
 
-$dark      : #1D1D1D;
-$dark-page : #121212;
+// 主色調 - 柔和藍綠色
+$primary: #4fb3bf;
+// 輔助色 - 溫暖橘色
+$secondary: #ff9a76;
+// 強調色 - 活潑粉紫色
+$accent: #e97ab2;
 
-$positive  : #21BA45;
-$negative  : #C10015;
-$info      : #31CCEC;
-$warning   : #F2C037;
+// 深色模式背景
+$dark: #2a2d34;
+$dark-page: #252335;
+
+// 功能性顏色
+$positive: #78c2ad; // 柔和綠色
+$negative: #f3969a; // 柔和紅色
+$info: #6cc3d5; // 淺藍色
+$warning: #ffce67; // 柔和黃色
+
+// 寶寶主題特有顏色
+$baby-blue: #a7d7e8;
+$baby-pink: #ffd1dc;
+$baby-green: #c1e1c1;
+$baby-yellow: #fff4bd;
+$baby-purple: #d4c1ec;
+
+// 文本色
+$text-light: #5e412f;
+$text-dark: #f0e6d5;
+
+// 背景色
+$bg-light: #fff8f0;
+$bg-dark: #252335;

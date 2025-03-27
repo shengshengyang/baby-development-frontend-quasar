@@ -1,6 +1,6 @@
 /* MilestonePage.scss */
 .milestone-page {
-  background-color: #FAFAFA;
+  background-color: #fafafa;
   min-height: 100vh;
 }
 
@@ -15,8 +15,8 @@
 }
 
 .category-title {
-  color: #5E412F;
-  border-bottom: 2px solid #F0C8A0;
+  color: #5e412f;
+  border-bottom: 2px solid #f0c8a0;
   padding-bottom: 0.5rem;
 }
 
@@ -39,7 +39,7 @@
 }
 
 .milestone-card.achieved {
-  border: 3px solid #4CAF50;
+  border: 3px solid #4caf50;
 }
 
 .milestone-card-inner {
@@ -54,7 +54,8 @@
   transform: rotateY(180deg);
 }
 
-.milestone-front, .milestone-back {
+.milestone-front,
+.milestone-back {
   position: absolute;
   width: 100%;
   height: 100%;
@@ -68,7 +69,7 @@
 }
 
 .milestone-back {
-  background-color: #F9F9F9;
+  background-color: #f9f9f9;
   transform: rotateY(180deg);
   justify-content: space-between;
 }
