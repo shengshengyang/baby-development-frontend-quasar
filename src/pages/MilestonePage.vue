@@ -317,12 +317,12 @@ async function toggleMilestoneStatus(flashcardId: number, checked: boolean): Pro
     };
 
     // 使用 apiHelper 發送 API 請求
-    const updatedBaby = await apiPost('/flash-card/check-progress', requestBody);
+    const updatedBaby = await apiPost<Baby>('/flash-card/check-progress', requestBody);
     console.log('API返回的更新後寶寶資料:', updatedBaby);
 
     // 更新 Pinia 儲存的寶寶資訊
     userStore.updateSelectedBaby(updatedBaby);
-
+    p;
     // 從後端返回的資料重新更新已達成里程碑列表，確保與後端同步
     updateAchievedMilestonesFromProgress();
 
