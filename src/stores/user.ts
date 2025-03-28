@@ -11,6 +11,7 @@ export interface Progress {
 }
 
 export interface Baby {
+  id: number; // Add missing id property
   name: string;
   birthDate: string;
   progresses: Progress[];
@@ -93,6 +94,20 @@ export const useUserStore = defineStore('user', {
       this.userData = null;
       this.selectedBabyIndex = -1;
       localStorage.removeItem('selectedBabyIndex');
+    },
+
+    // 新增更新選定寶寶的方法
+    updateSelectedBaby(babyData: Baby): void {
+      if (this.selectedBaby && this.selectedBaby.id === babyData.id) {
+        // Update the reference to selectedBaby directly
+        if (this.userData && this.userData.babies) {
+          // Find the baby in the userData.babies array and update it
+          const index = this.userData.babies.findIndex((baby) => baby.id === babyData.id);
+          if (index !== -1) {
+            this.userData.babies[index] = babyData;
+          }
+        }
+      }
     },
   },
 });

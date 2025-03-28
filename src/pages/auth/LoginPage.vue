@@ -50,6 +50,7 @@ interface LoginResponse {
   role: string[];
   token: string;
   babies: {
+    id: number; // Make sure id is included
     name: string;
     birthDate: string;
     progresses: {

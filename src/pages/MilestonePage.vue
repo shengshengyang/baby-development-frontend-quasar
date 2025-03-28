@@ -61,11 +61,11 @@
                 </div>
               </div>
               <q-checkbox
-                v-model="achievedMilestones"
-                :val="milestone.id"
+                :model-value="isAchieved(milestone.id)"
                 label="已達成"
                 class="milestone-checkbox q-pa-sm"
                 @click.stop
+                @update:model-value="toggleMilestoneStatus(milestone.id, $event)"
               />
             </div>
 
@@ -92,11 +92,26 @@
       <p class="text-h6 q-mt-md">沒有找到符合此分類與年齡階段的里程碑</p>
       <q-btn color="primary" label="查看全部" @click="resetFilters" class="q-mt-md" />
     </div>
+
+    <!-- 加入載入中遮罩 -->
+    <q-dialog v-model="isLoading" persistent>
+      <q-card class="bg-transparent shadow-0">
+        <q-card-section class="row items-center justify-center">
+          <q-spinner-dots color="primary" size="80px" />
+          <div class="q-mt-md text-white text-center">更新進度中...</div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useUserStore } from 'src/stores/user';
+import { Notify } from 'quasar'; // Import Notify directly
+import { apiPost } from 'src/api/apiHelper';
+import { apiConfig } from 'src/api/config';
+// Import the Baby type from the user store
 
 // 1. 定義介面，符合 API 返回的資料結構
 interface Milestone {
@@ -117,16 +132,32 @@ interface AgeGroup {
 
 // 2. 響應式資料
 const milestones = ref<Milestone[]>([]);
-
+const userStore = useUserStore();
 const flippedCards = ref<number[]>([]);
 const achievedMilestones = ref<number[]>([]);
 const selectedAgeGroup = ref<[number, number] | null>(null);
 const activeCategory = ref('massive motion'); // 依照 API 回傳的 category 預設
 
+// 增加 loading 狀態
+const isLoading = ref(false);
+
+// 從選定寶寶的進度中更新已達成的里程碑
+function updateAchievedMilestonesFromProgress() {
+  if (userStore.isLoggedIn && userStore.selectedBaby?.progresses) {
+    // 從進度資料中取得已達成的里程碑 ID
+    const achievedIds = userStore.selectedBaby.progresses
+      .filter((progress) => progress.achieved)
+      .map((progress) => progress.flashcardId);
+
+    // 更新已達成的里程碑列表
+    achievedMilestones.value = achievedIds;
+  }
+}
+
 // 3. 生命週期 - 在 onMounted 中發送 API 請求，拿取資料
 onMounted(async () => {
   try {
-    const response = await fetch('http://localhost:8080/open/flash-card', {
+    const response = await fetch(`${apiConfig.baseUrl}${apiConfig.endpoints.milestones}`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -141,10 +172,22 @@ onMounted(async () => {
     const data: Milestone[] = await response.json();
     milestones.value = data;
     console.log('取得資料:', data);
+
+    // 資料載入後，從進度更新已達成里程碑
+    updateAchievedMilestonesFromProgress();
   } catch (error) {
     console.error('Error fetching flash-card data:', error);
   }
 });
+
+// 監聽選定寶寶的變化，更新已達成的里程碑
+watch(
+  () => userStore.selectedBaby,
+  () => {
+    updateAchievedMilestonesFromProgress();
+  },
+  { deep: true },
+);
 
 // 根據實際里程碑資料動態生成年齡選項
 const ageGroups = computed((): AgeGroup[] => {
@@ -207,11 +250,19 @@ const categories = computed((): string[] => {
   return Array.from(categorySet);
 });
 
-// 根據當前 activeCategory 過濾里程碑
+// 根據當前 activeCategory 過濾里程碑，並將已達成的排在最後
 const filteredMilestonesByCategory = computed((): Milestone[] => {
-  return filteredMilestones.value.filter(
-    (milestone) => milestone.category === activeCategory.value,
-  );
+  return filteredMilestones.value
+    .filter((milestone) => milestone.category === activeCategory.value)
+    .sort((a, b) => {
+      // 已達成的排序到最後
+      const aAchieved = isAchieved(a.id);
+      const bAchieved = isAchieved(b.id);
+
+      if (aAchieved && !bAchieved) return 1; // a 已達成但 b 未達成，a 排後面
+      if (!aAchieved && bAchieved) return -1; // a 未達成但 b 已達成，a 排前面
+      return 0; // 兩者狀態相同，保持原順序
+    });
 });
 
 function resetFilters() {
@@ -229,6 +280,74 @@ function getCategoryTitle(category: string): string {
     social: '社交發展',
   };
   return categoryMap[category] || category;
+}
+
+// 切換里程碑狀態並呼叫 API
+async function toggleMilestoneStatus(flashcardId: number, checked: boolean): Promise<void> {
+  // 如果沒有登入或沒有選擇寶寶，顯示提示
+  if (!userStore.isLoggedIn || !userStore.selectedBaby) {
+    Notify.create({
+      // Use Notify.create instead of $q.notify
+      type: 'warning',
+      message: '請先登入並選擇寶寶',
+      position: 'top',
+    });
+    return;
+  }
+
+  try {
+    // 開始載入
+    isLoading.value = true;
+
+    // 預先更新本地狀態，提供即時反饋
+    if (checked) {
+      // 如果要標記為已達成，先加入到本地列表
+      if (!achievedMilestones.value.includes(flashcardId)) {
+        achievedMilestones.value.push(flashcardId);
+      }
+    } else {
+      // 如果要標記為未達成，從本地列表中移除
+      achievedMilestones.value = achievedMilestones.value.filter((id) => id !== flashcardId);
+    }
+
+    // 準備 API 請求內容
+    const requestBody = {
+      babyId: userStore.selectedBaby.id,
+      flashcardId: flashcardId,
+    };
+
+    // 使用 apiHelper 發送 API 請求
+    const updatedBaby = await apiPost('/flash-card/check-progress', requestBody);
+    console.log('API返回的更新後寶寶資料:', updatedBaby);
+
+    // 更新 Pinia 儲存的寶寶資訊
+    userStore.updateSelectedBaby(updatedBaby);
+
+    // 從後端返回的資料重新更新已達成里程碑列表，確保與後端同步
+    updateAchievedMilestonesFromProgress();
+
+    // 顯示成功通知
+    Notify.create({
+      // Use Notify.create instead of $q.notify
+      type: 'positive',
+      message: checked ? '里程碑達成！' : '已取消達成狀態',
+      position: 'top',
+    });
+  } catch (error) {
+    console.error('Error updating milestone status:', error);
+    Notify.create({
+      // Use Notify.create instead of $q.notify
+      type: 'negative',
+      message: '更新里程碑狀態時發生錯誤',
+      position: 'top',
+    });
+
+    // 發生錯誤時還原本地狀態
+    updateAchievedMilestonesFromProgress();
+  } finally {
+    // 結束載入
+    isLoading.value = false;
+  }
 }
 </script>
 
@@ -281,6 +400,22 @@ body.body--dark {
       }
     }
   }
+}
+
+// 加入載入遮罩樣式
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  color: white;
 }
 </style>
 
