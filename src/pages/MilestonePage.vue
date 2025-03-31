@@ -107,7 +107,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { useUserStore } from 'src/stores/user';
+import { useUserStore, type Baby } from 'src/stores/user'; // Import Baby interface
 import { Notify } from 'quasar'; // Import Notify directly
 import { apiPost } from 'src/api/apiHelper';
 import { apiConfig } from 'src/api/config';
@@ -322,7 +322,6 @@ async function toggleMilestoneStatus(flashcardId: number, checked: boolean): Pro
 
     // 更新 Pinia 儲存的寶寶資訊
     userStore.updateSelectedBaby(updatedBaby);
-    p;
     // 從後端返回的資料重新更新已達成里程碑列表，確保與後端同步
     updateAchievedMilestonesFromProgress();
 
