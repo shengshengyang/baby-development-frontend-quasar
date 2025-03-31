@@ -80,7 +80,22 @@
 
     <!-- Footer 區塊，只放首頁按鈕 -->
     <q-footer elevated :class="{ 'footer-hidden': !isFooterVisible }">
-      <q-btn flat label="首頁" icon="home" @click="router.push({ name: 'Milestone' })" />
+      <div class="row justify-center full-width q-pa-sm">
+        <q-btn
+          flat
+          label="首頁"
+          icon="home"
+          @click="router.push({ name: 'Milestone' })"
+          class="q-mx-sm"
+        />
+        <q-btn
+          flat
+          label="疫苗"
+          icon="vaccines"
+          @click="router.push({ name: 'Vaccine' })"
+          class="q-mx-sm"
+        />
+      </div>
     </q-footer>
 
     <!-- 回到頂部按鈕 -->

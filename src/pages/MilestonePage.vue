@@ -59,8 +59,14 @@
                 <div class="text-h6">
                   {{ milestone.frontText }}
                 </div>
+                <!-- 已達成日期顯示 -->
+                <div v-if="isAchieved(milestone.id)" class="achievement-date q-mt-sm">
+                  達成於：{{ formatDate(getAchievementDate(milestone.id)) }}
+                </div>
               </div>
+              <!-- 只有登入用戶才顯示已達成的選項按鈕 -->
               <q-checkbox
+                v-if="userStore.isLoggedIn"
                 :model-value="isAchieved(milestone.id)"
                 label="已達成"
                 class="milestone-checkbox q-pa-sm"
@@ -152,6 +158,25 @@ function updateAchievedMilestonesFromProgress() {
     // 更新已達成的里程碑列表
     achievedMilestones.value = achievedIds;
   }
+}
+
+// 獲取里程碑達成日期
+function getAchievementDate(flashcardId: number): string | null {
+  if (!userStore.selectedBaby?.progresses) return null;
+
+  const progress = userStore.selectedBaby.progresses.find(
+    (p) => p.flashcardId === flashcardId && p.achieved,
+  );
+
+  return progress ? progress.dateAchieved : null;
+}
+
+// 格式化日期
+function formatDate(dateString: string | null): string {
+  if (!dateString) return '';
+
+  const date = new Date(dateString);
+  return date.toLocaleDateString('zh-TW'); // 轉換為台灣日期格式 (年/月/日)
 }
 
 // 3. 生命週期 - 在 onMounted 中發送 API 請求，拿取資料
@@ -415,6 +440,18 @@ body.body--dark {
   align-items: center;
   z-index: 9999;
   color: white;
+}
+
+// 添加達成日期的樣式
+.achievement-date {
+  font-size: 0.9rem;
+  color: #42b983;
+  font-weight: 500;
+}
+
+// 為已達成的卡片添加特殊樣式
+.milestone-card.achieved {
+  border-left: 4px solid #42b983;
 }
 </style>
 

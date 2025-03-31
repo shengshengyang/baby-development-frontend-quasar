@@ -11,6 +11,9 @@ export const apiConfig = {
     login: '/auth/login',
     // 寶寶相關
     createBaby: '/baby',
+    // 疫苗相關
+    vaccineSchedules: '/baby/{babyId}/schedules',
+    updateVaccineSchedule: '/baby/{babyId}/schedules/{scheduleId}',
     // 將來可以添加更多 endpoints
   },
 };
