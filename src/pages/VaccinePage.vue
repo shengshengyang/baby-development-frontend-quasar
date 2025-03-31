@@ -35,25 +35,56 @@
     <div v-else-if="viewMode === 'calendar'" class="calendar-view q-mt-md">
       <div v-for="(group, index) in vaccinesByAge" :key="index" class="calendar-group q-mb-lg">
         <div class="text-h6 age-title q-py-sm">{{ group.age }}</div>
-        <q-card v-for="vaccine in group.vaccines" :key="vaccine.id" class="q-mb-md">
-          <q-card-section>
-            <div class="text-subtitle1 vaccine-name">{{ vaccine.vaccineName }}</div>
-            <div class="text-caption q-mt-xs">{{ vaccine.description }}</div>
-            <div class="text-caption q-mt-sm">
-              <q-badge :color="getStatusColor(vaccine)" class="q-pa-xs">
-                {{ getStatusText(vaccine) }}
-              </q-badge>
-            </div>
 
-            <!-- 新增「記錄接種」按鈕 -->
-            <div class="text-right q-mt-sm" v-if="vaccine.status === 'SCHEDULED'">
-              <q-btn
+        <q-card
+          v-for="vaccineGroup in groupVaccinesByType(group.vaccines)"
+          :key="vaccineGroup.id"
+          class="q-mb-md"
+        >
+          <q-card-section>
+            <div class="text-subtitle1 vaccine-name">{{ vaccineGroup.name }}</div>
+            <div class="text-caption q-mt-xs">{{ vaccineGroup.description }}</div>
+
+            <!-- 疫苗進度條 -->
+            <div class="progress-container q-mt-md">
+              <div class="text-caption q-mb-xs">
+                接種進度 ({{ vaccineGroup.completedDoses }}/{{ vaccineGroup.totalDoses }})
+              </div>
+              <q-linear-progress
+                :value="vaccineGroup.completedDoses / vaccineGroup.totalDoses"
                 color="primary"
-                flat
-                dense
-                label="記錄接種"
-                @click="findAndOpenVaccinationDialog(vaccine)"
+                class="q-mb-sm"
               />
+              <div class="dose-progress">
+                <div
+                  v-for="dose in vaccineGroup.doses"
+                  :key="dose.id"
+                  class="dose-item text-caption q-mr-sm"
+                >
+                  <q-badge
+                    :color="dose.status === 'COMPLETED' ? 'positive' : 'grey'"
+                    class="q-mr-xs"
+                    v-tooltip="getStatusText(dose)"
+                  >
+                    {{ dose.doseNumber }}
+                  </q-badge>
+                  <span>{{ getStatusTextShort(dose) }}</span>
+                </div>
+              </div>
+
+              <!-- 新增「記錄接種」按鈕 -->
+              <div class="text-right q-mt-sm">
+                <q-btn
+                  v-for="dose in vaccineGroup.doses.filter((d) => d.status === 'SCHEDULED')"
+                  :key="dose.id"
+                  color="primary"
+                  flat
+                  dense
+                  :label="`記錄第${dose.doseNumber}劑`"
+                  @click="findAndOpenVaccinationDialog(dose)"
+                  class="q-ml-sm"
+                />
+              </div>
             </div>
           </q-card-section>
         </q-card>
@@ -62,38 +93,62 @@
 
     <!-- 列表模式 -->
     <div v-else class="list-view q-mt-md">
+      <q-item-label header class="text-subtitle1">依疫苗類型分組</q-item-label>
       <q-list separator>
-        <q-item v-for="schedule in vaccineSchedules" :key="schedule.id" class="q-mb-md">
-          <q-item-section>
-            <q-item-label class="text-subtitle1 vaccine-name">
-              {{ schedule.vaccine.name }} (第{{ schedule.doseNumber }}劑)
-            </q-item-label>
-            <q-item-label caption>{{ schedule.vaccine.description }}</q-item-label>
-            <q-item-label caption
-              >預計接種日期: {{ formatDate(schedule.scheduledDate) }}</q-item-label
-            >
+        <q-expansion-item
+          v-for="group in groupedVaccinesList"
+          :key="group.id"
+          :label="group.name"
+          :caption="`進度: ${group.completedDoses}/${group.totalDoses}`"
+          header-class="text-primary"
+          expand-separator
+          class="q-mb-md vaccine-group"
+        >
+          <div class="q-pa-md">
+            <div class="text-caption q-mb-md">{{ group.description }}</div>
 
-            <div class="q-mt-sm">
-              <q-badge :color="getScheduleStatusColor(schedule)">
-                {{ getScheduleStatusText(schedule) }}
-              </q-badge>
+            <!-- 進度條 -->
+            <q-linear-progress
+              :value="group.completedDoses / group.totalDoses"
+              color="primary"
+              class="q-mb-md"
+            />
+
+            <!-- 劑量詳情 -->
+            <div class="doses-detail">
+              <q-item v-for="dose in group.doses" :key="dose.id" class="q-mb-sm no-padding">
+                <q-item-section avatar>
+                  <q-badge :color="getStatusColor(dose)"> 第{{ dose.doseNumber }}劑 </q-badge>
+                </q-item-section>
+
+                <q-item-section>
+                  <q-item-label>
+                    <span class="status-text">{{ getGroupedVaccineStatusText(dose) }}</span>
+                    <q-badge
+                      :color="getScheduleStatusColor(findScheduleForGroupedVaccine(dose))"
+                      class="q-ml-sm"
+                    >
+                      {{ getScheduleStatusText(findScheduleForGroupedVaccine(dose)) }}
+                    </q-badge>
+                  </q-item-label>
+                  <q-item-label caption>
+                    預計: {{ formatDate(dose.scheduledDate) }}
+                    <span v-if="dose.actualDate"> | 實際: {{ formatDate(dose.actualDate) }} </span>
+                  </q-item-label>
+                </q-item-section>
+
+                <q-item-section side v-if="dose.status === 'SCHEDULED'">
+                  <q-btn
+                    flat
+                    color="primary"
+                    label="記錄"
+                    @click="openVaccinationDialog(findScheduleForGroupedVaccine(dose))"
+                  />
+                </q-item-section>
+              </q-item>
             </div>
-
-            <!-- 接種日期與按鈕 -->
-            <div class="flex justify-between items-center q-mt-md">
-              <div v-if="schedule.actualDate">
-                <span class="text-subtitle2">接種日期: {{ formatDate(schedule.actualDate) }}</span>
-              </div>
-
-              <q-btn
-                v-if="schedule.status === 'SCHEDULED'"
-                color="primary"
-                label="記錄接種"
-                @click="openVaccinationDialog(schedule)"
-              />
-            </div>
-          </q-item-section>
-        </q-item>
+          </div>
+        </q-expansion-item>
       </q-list>
     </div>
 
@@ -148,10 +203,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { getVaccineSchedules, updateVaccineSchedule } from 'src/api/apiHelper';
+import { getVaccineSchedules, completeVaccineSchedule } from 'src/api/apiHelper';
 import { useQuasar } from 'quasar';
 import { useUserStore } from 'src/stores/user'; // Import Baby interface
 import type { VaccineSchedule, VaccineStatus } from 'src/types/vaccine';
+import 'src/styles/vaccinePage.scss'; // 導入獨立的 SCSS 文件
 
 const $q = useQuasar();
 const userStore = useUserStore();
@@ -166,6 +222,16 @@ interface GroupedVaccine {
   scheduledDate: string;
   actualDate: string | null;
   doseNumber: number;
+}
+
+// 新增疫苗組類型
+interface VaccineGroup {
+  id: number;
+  name: string;
+  description: string;
+  totalDoses: number;
+  completedDoses: number;
+  doses: GroupedVaccine[];
 }
 
 // 2. 視圖模式（日程表或列表）
@@ -277,6 +343,77 @@ const vaccinesByAge = computed(() => {
     .sort((a, b) => (ageOrder[a.age] || 999) - (ageOrder[b.age] || 999));
 });
 
+// 將同一種疫苗分到一組
+const groupVaccinesByType = (vaccines: GroupedVaccine[]): VaccineGroup[] => {
+  const groups: Record<number, VaccineGroup> = {};
+
+  vaccines.forEach((vaccine) => {
+    if (!groups[vaccine.vaccineId]) {
+      groups[vaccine.vaccineId] = {
+        id: vaccine.vaccineId,
+        name: vaccine.vaccineName,
+        description: vaccine.description,
+        totalDoses: 0,
+        completedDoses: 0,
+        doses: [],
+      };
+    }
+
+    // Add non-null assertion operator to tell TypeScript this is definitely defined
+    groups[vaccine.vaccineId]!.doses.push(vaccine);
+  });
+
+  // 計算每種疫苗的總劑數與已完成劑數
+  Object.values(groups).forEach((group) => {
+    group.doses.sort((a, b) => a.doseNumber - b.doseNumber);
+    group.totalDoses = group.doses.length;
+    group.completedDoses = group.doses.filter((dose) => dose.status === 'COMPLETED').length;
+  });
+
+  return Object.values(groups);
+};
+
+// 列表視圖用的分組疫苗
+const groupedVaccinesList = computed(() => {
+  const groups: Record<number, VaccineGroup> = {};
+
+  vaccineSchedules.value.forEach((schedule) => {
+    const vaccineId = schedule.vaccine.id;
+
+    if (!groups[vaccineId]) {
+      groups[vaccineId] = {
+        id: vaccineId,
+        name: schedule.vaccine.name,
+        description: schedule.vaccine.description,
+        totalDoses: 0,
+        completedDoses: 0,
+        doses: [],
+      };
+    }
+
+    // 將 schedule 轉換為 GroupedVaccine 格式添加到列表
+    groups[vaccineId].doses.push({
+      id: schedule.id,
+      vaccineId: schedule.vaccine.id,
+      vaccineName: schedule.vaccine.name,
+      description: schedule.vaccine.description,
+      status: schedule.status as VaccineStatus,
+      scheduledDate: schedule.scheduledDate,
+      actualDate: schedule.actualDate,
+      doseNumber: schedule.doseNumber,
+    });
+  });
+
+  // 計算總劑數和完成劑數
+  Object.values(groups).forEach((group) => {
+    group.doses.sort((a, b) => a.doseNumber - b.doseNumber);
+    group.totalDoses = group.doses.length;
+    group.completedDoses = group.doses.filter((dose) => dose.status === 'COMPLETED').length;
+  });
+
+  return Object.values(groups).sort((a, b) => a.name.localeCompare(b.name, 'zh-TW'));
+});
+
 // 6. 根據狀態獲取顏色
 const getStatusColor = (vaccine: GroupedVaccine): string => {
   switch (vaccine.status) {
@@ -303,6 +440,54 @@ const getStatusText = (vaccine: GroupedVaccine): string => {
     default:
       return '未知狀態';
   }
+};
+
+// 簡短狀態文字
+const getStatusTextShort = (vaccine: GroupedVaccine): string => {
+  switch (vaccine.status) {
+    case 'COMPLETED':
+      return '已完成';
+    case 'SCHEDULED':
+      return formatDateShort(vaccine.scheduledDate);
+    case 'MISSED':
+      return '已錯過';
+    default:
+      return '';
+  }
+};
+
+// 轉換 GroupedVaccine 到對應的 VaccineSchedule
+const findScheduleForGroupedVaccine = (groupedVaccine: GroupedVaccine): VaccineSchedule => {
+  const schedule = vaccineSchedules.value.find((s) => s.id === groupedVaccine.id);
+  if (!schedule) {
+    throw new Error(`找不到ID為 ${groupedVaccine.id} 的疫苗時程`);
+  }
+  return schedule;
+};
+
+// 列表視圖的分組疫苗狀態文字
+const getGroupedVaccineStatusText = (vaccine: GroupedVaccine): string => {
+  switch (vaccine.status) {
+    case 'COMPLETED':
+      return '已完成';
+    case 'SCHEDULED':
+      return '待接種';
+    case 'MISSED':
+      return '已錯過';
+    default:
+      return '未知狀態';
+  }
+};
+
+// 簡短日期格式
+const formatDateShort = (dateString?: string): string => {
+  if (!dateString) return '';
+
+  const date = new Date(dateString);
+  return date.toLocaleDateString('zh-TW', {
+    month: 'numeric',
+    day: 'numeric',
+  });
 };
 
 // 8. 列表視圖的狀態顏色
@@ -346,7 +531,16 @@ const formatDate = (dateString?: string): string => {
 };
 
 // 11. 開啟接種對話框
-const openVaccinationDialog = (vaccine: VaccineSchedule) => {
+const openVaccinationDialog = (vaccine: VaccineSchedule | null) => {
+  if (!vaccine) {
+    $q.notify({
+      color: 'negative',
+      message: '找不到對應的疫苗接種記錄',
+      icon: 'error',
+    });
+    return;
+  }
+
   selectedVaccine.value = vaccine;
   const today = new Date().toISOString().split('T')[0];
   vaccinationDate.value = today ? today : ''; // 確保不會是 undefined
@@ -394,11 +588,12 @@ const recordVaccination = async () => {
   submitting.value = true;
 
   try {
-    await updateVaccineSchedule(userStore.selectedBaby.id, selectedVaccine.value.id, {
-      actualDate: vaccinationDate.value,
-      status: 'COMPLETED' as const,
-      ...(vaccinationNote.value ? { note: vaccinationNote.value } : {}),
-    });
+    // 使用新的 helper 函數
+    await completeVaccineSchedule(
+      selectedVaccine.value.id,
+      vaccinationDate.value,
+      vaccinationNote.value || undefined,
+    );
 
     // 更新本地數據
     await fetchVaccineSchedules();
@@ -426,90 +621,3 @@ const recordVaccination = async () => {
 // 13. 組件載入時獲取疫苗時程表
 onMounted(fetchVaccineSchedules);
 </script>
-
-<style lang="scss" scoped>
-.vaccine-page {
-  max-width: 900px;
-  margin: 0 auto;
-}
-
-.page-header {
-  h2 {
-    font-family: 'Bubblegum Sans', 'Baloo 2', 'Noto Sans TC', cursive;
-    letter-spacing: 0.08em;
-    font-weight: 600;
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
-  p {
-    font-family: 'Nunito', 'Noto Sans TC', sans-serif;
-    letter-spacing: 0.03em;
-    font-weight: 500;
-  }
-}
-
-.view-toggle {
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.calendar-group {
-  .age-title {
-    background-color: var(--q-primary);
-    color: white;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-family: 'Baloo 2', 'Noto Sans TC', sans-serif;
-    letter-spacing: 0.05em;
-  }
-}
-
-.vaccine-name {
-  font-weight: 600;
-  color: var(--q-primary);
-}
-
-.list-view {
-  .q-item {
-    border-radius: 8px;
-    margin-bottom: 16px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    background-color: white;
-  }
-
-  .progress-container {
-    width: 100%;
-  }
-
-  .dose-progress {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .doses-detail {
-    margin-top: 12px;
-  }
-
-  .dose-item {
-    display: flex;
-    align-items: center;
-  }
-}
-
-// 暗黑模式樣式
-.body--dark {
-  .calendar-group .age-title {
-    background-color: darken($primary, 10%);
-  }
-
-  .list-view .q-item {
-    background-color: var(--q-bg-dark);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  }
-
-  .vaccine-name {
-    color: lighten($primary, 10%);
-  }
-}
-</style>

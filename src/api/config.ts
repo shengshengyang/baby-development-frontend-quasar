@@ -14,6 +14,7 @@ export const apiConfig = {
     // 疫苗相關
     vaccineSchedules: '/baby/{babyId}/schedules',
     updateVaccineSchedule: '/baby/{babyId}/schedules/{scheduleId}',
+    completeVaccineSchedule: '/baby/complete-schedule', // 新增完成疫苗接種的端點
     // 將來可以添加更多 endpoints
   },
 };

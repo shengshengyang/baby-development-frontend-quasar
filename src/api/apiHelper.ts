@@ -47,3 +47,24 @@ export async function updateVaccineSchedule(
     throw error;
   }
 }
+
+// 完成疫苗接種記錄
+export async function completeVaccineSchedule(
+  scheduleId: number,
+  actualDate: string,
+  note?: string,
+): Promise<VaccineSchedule> {
+  try {
+    const url = apiConfig.endpoints.completeVaccineSchedule;
+    const data = {
+      scheduleId,
+      actualDate,
+      ...(note ? { note } : {}),
+    };
+    const response = await apiClient.post<VaccineSchedule>(url, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error completing vaccine schedule:', error);
+    throw error;
+  }
+}

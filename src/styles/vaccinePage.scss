@@ -1,0 +1,126 @@
+.vaccine-page {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.page-header {
+  h2 {
+    font-family: 'Bubblegum Sans', 'Baloo 2', 'Noto Sans TC', cursive;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  p {
+    font-family: 'Nunito', 'Noto Sans TC', sans-serif;
+    letter-spacing: 0.03em;
+    font-weight: 500;
+  }
+}
+
+.view-toggle {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.calendar-group {
+  .age-title {
+    background-color: var(--q-primary);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-family: 'Baloo 2', 'Noto Sans TC', sans-serif;
+    letter-spacing: 0.05em;
+  }
+}
+
+.vaccine-name {
+  font-weight: 600;
+  color: var(--q-primary);
+}
+
+.list-view {
+  .q-item {
+    border-radius: 8px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    background-color: white;
+  }
+
+  .progress-container {
+    width: 100%;
+  }
+
+  .dose-progress {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  .doses-detail {
+    margin-top: 12px;
+
+    .q-item {
+      padding: 8px 0;
+      &:not(:last-child) {
+        border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+      }
+    }
+  }
+
+  .vaccine-group {
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+  }
+}
+
+.calendar-view {
+  .progress-container {
+    margin-top: 12px;
+  }
+
+  .dose-progress {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .dose-item {
+    display: flex;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.03);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+}
+
+// 暗黑模式樣式
+.body--dark {
+  .calendar-group .age-title {
+    background-color: darken($primary, 10%);
+  }
+
+  .list-view .q-item {
+    background-color: var(--q-bg-dark);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  }
+
+  .vaccine-name {
+    color: lighten($primary, 10%);
+  }
+
+  .vaccine-group {
+    background-color: var(--q-bg-dark);
+  }
+
+  .calendar-view .dose-item {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .list-view .doses-detail .q-item:not(:last-child) {
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+  }
+}
