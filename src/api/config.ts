@@ -7,6 +7,8 @@ export const apiConfig = {
   baseUrl: apiBaseUrl,
   endpoints: {
     milestones: '/open/flash-card',
+    // 新增：年齡選項
+    ageOptions: 'api/options/ages',
     // 認證相關
     login: '/auth/login',
     // 寶寶相關
