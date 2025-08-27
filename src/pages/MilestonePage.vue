@@ -8,8 +8,8 @@
     <!-- 年齡分組選擇器 -->
     <div class="age-filter q-mb-lg">
       <q-select
-        v-model="selectedAgeGroup"
-        :options="ageGroups"
+        v-model="selectedAgeId"
+        :options="ageOptions"
         label="年齡篩選"
         outlined
         emit-value
@@ -117,6 +117,7 @@ import { useUserStore, type Baby } from 'src/stores/user'; // Import Baby interf
 import { Notify } from 'quasar'; // Import Notify directly
 import { apiPost } from 'src/api/apiHelper';
 import { apiConfig } from 'src/api/config';
+import apiClient from 'src/api/apiClient';
 // Import the Baby type from the user store
 
 // 1. 定義介面，符合 API 返回的資料結構
@@ -131,9 +132,9 @@ interface Milestone {
   imageUrl: string;
 }
 
-interface AgeGroup {
+interface AgeOption {
   label: string;
-  value: [number, number] | null;
+  value: string | null; // 從後端取得的 id；全部用 null
 }
 
 // 2. 響應式資料
@@ -141,7 +142,8 @@ const milestones = ref<Milestone[]>([]);
 const userStore = useUserStore();
 const flippedCards = ref<number[]>([]);
 const achievedMilestones = ref<number[]>([]);
-const selectedAgeGroup = ref<[number, number] | null>(null);
+const selectedAgeId = ref<string | null>(null);
+const ageOptions = ref<AgeOption[]>([{ label: '全部', value: null }]);
 const activeCategory = ref('massive motion'); // 依照 API 回傳的 category 預設
 
 // 增加 loading 狀態
@@ -150,13 +152,10 @@ const isLoading = ref(false);
 // 從選定寶寶的進度中更新已達成的里程碑
 function updateAchievedMilestonesFromProgress() {
   if (userStore.isLoggedIn && userStore.selectedBaby?.progresses) {
-    // 從進度資料中取得已達成的里程碑 ID
-    const achievedIds = userStore.selectedBaby.progresses
+    // 從進度資料中取得已達成的里程碑 ID，並直接更新
+    achievedMilestones.value = userStore.selectedBaby.progresses
       .filter((progress) => progress.achieved)
       .map((progress) => progress.flashcardId);
-
-    // 更新已達成的里程碑列表
-    achievedMilestones.value = achievedIds;
   }
 }
 
@@ -177,6 +176,38 @@ function formatDate(dateString: string | null): string {
 
   const date = new Date(dateString);
   return date.toLocaleDateString('zh-TW'); // 轉換為台灣日期格式 (年/月/日)
+}
+
+// 解析年齡選項的 label 轉換成月齡（僅用於前端過濾）。返回單一月齡或 null 代表不限制。
+function parseMonthFromLabel(label: string): number | null {
+  if (!label) return null;
+  if (label.includes('新生兒')) return 0;
+  const m = label.match(/(\d+)/);
+  if (m) return Number(m[1]);
+  return null;
+}
+
+async function fetchAgeOptions() {
+  try {
+    const res = await apiClient.get(apiConfig.endpoints.ageOptions, {
+      headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
+    });
+    const list = Array.isArray(res.data) ? res.data : [];
+    // 確保每個選項都有 label 與 value
+    const normalized: AgeOption[] = list
+      .filter((o) => o && typeof o.label === 'string' && 'value' in o)
+      .map((o) => ({ label: o.label, value: String(o.value) }));
+
+    ageOptions.value = [{ label: '全部', value: null }, ...normalized];
+  } catch (e) {
+    console.error('取得年齡選項失敗，使用本地里程碑推導的選項作為後備。', e);
+    // 後備：由里程碑資料推導
+    const uniqueAges = [...new Set(milestones.value.map((m) => m.ageInMonths))].sort((a, b) => a - b);
+    ageOptions.value = [
+      { label: '全部', value: null },
+      ...uniqueAges.map((age) => ({ label: `${age} 個月`, value: String(age) })),
+    ];
+  }
 }
 
 // 3. 生命週期 - 在 onMounted 中發送 API 請求，拿取資料
@@ -203,6 +234,8 @@ onMounted(async () => {
   } catch (error) {
     console.error('Error fetching flash-card data:', error);
   }
+  // 無論成功或失敗，都嘗試載入年齡選項（後端失敗則有後備方案）
+  await fetchAgeOptions();
 });
 
 // 監聽選定寶寶的變化，更新已達成的里程碑
@@ -214,27 +247,12 @@ watch(
   { deep: true },
 );
 
-// 根據實際里程碑資料動態生成年齡選項
-const ageGroups = computed((): AgeGroup[] => {
-  // 首先添加「全部」選項
-  const groups: AgeGroup[] = [{ label: '全部', value: null }];
-
-  if (milestones.value.length === 0) {
-    return groups;
-  }
-
-  // 取得所有唯一的月齡，並依照月齡排序
-  const uniqueAges = [...new Set(milestones.value.map((m) => m.ageInMonths))].sort((a, b) => a - b);
-
-  // 為每個實際存在的月齡創建選項
-  uniqueAges.forEach((age) => {
-    groups.push({
-      label: `${age} 個月`,
-      value: [age, age], // 精確匹配此年齡
-    });
-  });
-
-  return groups;
+// 根據選擇的年齡 id，找出對應的月齡（以 label 推斷）
+const selectedMonth = computed<number | null>(() => {
+  if (!selectedAgeId.value) return null;
+  const opt = ageOptions.value.find((o) => o.value === selectedAgeId.value);
+  if (!opt) return null;
+  return parseMonthFromLabel(opt.label);
 });
 
 // 4. 邏輯函式
@@ -254,16 +272,12 @@ function isAchieved(id: number): boolean {
   return achievedMilestones.value.includes(id);
 }
 
-// 依照年齡篩選里程碑
+// 依照年齡篩選里程碑（以解析出的單一月齡進行等值過濾）
 const filteredMilestones = computed((): Milestone[] => {
-  if (!selectedAgeGroup.value) {
+  if (selectedMonth.value === null) {
     return milestones.value;
   }
-
-  const [min, max] = selectedAgeGroup.value;
-  return milestones.value.filter(
-    (milestone) => milestone.ageInMonths >= min && milestone.ageInMonths <= max,
-  );
+  return milestones.value.filter((milestone) => milestone.ageInMonths === selectedMonth.value);
 });
 
 // 獲取所有類別
@@ -291,7 +305,7 @@ const filteredMilestonesByCategory = computed((): Milestone[] => {
 });
 
 function resetFilters() {
-  selectedAgeGroup.value = null;
+  selectedAgeId.value = null;
   // 可以視需要重設 activeCategory
 }
 
