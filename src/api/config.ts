@@ -8,7 +8,9 @@ export const apiConfig = {
   endpoints: {
     milestones: '/open/flash-card',
     // 新增：年齡選項
-    ageOptions: 'api/options/ages',
+    ageOptions: '/options/ages',
+    // 新增：分類選項
+    categoryOptions: '/options/categories',
     // 認證相關
     login: '/auth/login',
     // 寶寶相關

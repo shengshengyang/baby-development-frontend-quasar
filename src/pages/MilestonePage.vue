@@ -2,7 +2,7 @@
   <q-page class="q-pa-md milestone-page">
     <div class="page-header">
       <h2 class="text-h4 text-primary q-mb-md">寶寶發展里程碑</h2>
-      <p class="text-subtitle1 q-mb-lg">追蹤您寶寶的成長與發展階段</p>
+      <p class="text-subtitle1 q-mb-lg">追��您寶寶的成長與發展階段</p>
     </div>
 
     <!-- 年齡分組選擇器 -->
@@ -18,19 +18,19 @@
       />
     </div>
 
-    <!-- 分類 Tabs -->
+    <!-- 分類 Tabs：使用後端 options -->
     <q-tabs
-      v-model="activeCategory"
+      v-model="activeCategoryId"
       class="q-mb-md"
       dense
       align="justify"
       indicator-color="primary"
     >
       <q-tab
-        v-for="category in categories"
-        :key="category"
-        :name="category"
-        :label="getCategoryTitle(category)"
+        v-for="opt in categoryOptions"
+        :key="opt.value"
+        :name="opt.value"
+        :label="opt.label"
       />
     </q-tabs>
 
@@ -113,17 +113,16 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { useUserStore, type Baby } from 'src/stores/user'; // Import Baby interface
-import { Notify } from 'quasar'; // Import Notify directly
+import { useUserStore, type Baby } from 'src/stores/user';
+import { Notify } from 'quasar';
 import { apiPost } from 'src/api/apiHelper';
 import { apiConfig } from 'src/api/config';
 import apiClient from 'src/api/apiClient';
-// Import the Baby type from the user store
 
-// 1. 定義介面，符合 API 返回的資料結構
+// 1. 定義介面
 interface Milestone {
   id: number;
-  category: string;
+  category: string; // 內部分類鍵：如 'massive motion' | 'fine motor' | 'cognitive' | 'language' | 'social'
   milestoneId: number;
   ageInMonths: number;
   languageCode: string;
@@ -137,14 +136,24 @@ interface AgeOption {
   value: string | null; // 從後端取得的 id；全部用 null
 }
 
+interface CategoryOption {
+  label: string;
+  value: string; // 從後端取得的分類 id
+}
+
 // 2. 響應式資料
 const milestones = ref<Milestone[]>([]);
 const userStore = useUserStore();
 const flippedCards = ref<number[]>([]);
 const achievedMilestones = ref<number[]>([]);
+
+// 年齡相關
 const selectedAgeId = ref<string | null>(null);
 const ageOptions = ref<AgeOption[]>([{ label: '全部', value: null }]);
-const activeCategory = ref('massive motion'); // 依照 API 回傳的 category 預設
+
+// 分類相關（以 id 為 v-model）
+const categoryOptions = ref<CategoryOption[]>([]);
+const activeCategoryId = ref<string | null>(null);
 
 // 增加 loading 狀態
 const isLoading = ref(false);
@@ -152,33 +161,27 @@ const isLoading = ref(false);
 // 從選定寶寶的進度中更新已達成的里程碑
 function updateAchievedMilestonesFromProgress() {
   if (userStore.isLoggedIn && userStore.selectedBaby?.progresses) {
-    // 從進度資料中取得已達成的里程碑 ID，並直接更新
     achievedMilestones.value = userStore.selectedBaby.progresses
       .filter((progress) => progress.achieved)
       .map((progress) => progress.flashcardId);
   }
 }
 
-// 獲取里程碑達成日期
 function getAchievementDate(flashcardId: number): string | null {
   if (!userStore.selectedBaby?.progresses) return null;
-
   const progress = userStore.selectedBaby.progresses.find(
     (p) => p.flashcardId === flashcardId && p.achieved,
   );
-
   return progress ? progress.dateAchieved : null;
 }
 
-// 格式化日期
 function formatDate(dateString: string | null): string {
   if (!dateString) return '';
-
   const date = new Date(dateString);
-  return date.toLocaleDateString('zh-TW'); // 轉換為台灣日期格式 (年/月/日)
+  return date.toLocaleDateString('zh-TW');
 }
 
-// 解析年齡選項的 label 轉換成月齡（僅用於前端過濾）。返回單一月齡或 null 代表不限制。
+// 解析年齡 label -> 月齡
 function parseMonthFromLabel(label: string): number | null {
   if (!label) return null;
   if (label.includes('新生兒')) return 0;
@@ -187,13 +190,30 @@ function parseMonthFromLabel(label: string): number | null {
   return null;
 }
 
+// 解析分類 label -> 對應內部里���碑類別鍵陣列
+function mapCategoryLabelToInternal(label: string): string[] | null {
+  switch (label) {
+    case '動作發展':
+      return ['massive motion', 'fine motor'];
+    case '認知發展':
+      return ['cognitive'];
+    case '語言溝通':
+    case '語言發展': // 兼容舊文案
+      return ['language'];
+    case '社會與情感':
+    case '社交發展': // 兼容舊文案
+      return ['social'];
+    default:
+      return null; // 未知則不過濾
+  }
+}
+
 async function fetchAgeOptions() {
   try {
     const res = await apiClient.get(apiConfig.endpoints.ageOptions, {
       headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
     });
     const list = Array.isArray(res.data) ? res.data : [];
-    // 確保每個選項都有 label 與 value
     const normalized: AgeOption[] = list
       .filter((o) => o && typeof o.label === 'string' && 'value' in o)
       .map((o) => ({ label: o.label, value: String(o.value) }));
@@ -201,7 +221,6 @@ async function fetchAgeOptions() {
     ageOptions.value = [{ label: '全部', value: null }, ...normalized];
   } catch (e) {
     console.error('取得年齡選項失敗，使用本地里程碑推導的選項作為後備。', e);
-    // 後備：由里程碑資料推導
     const uniqueAges = [...new Set(milestones.value.map((m) => m.ageInMonths))].sort((a, b) => a - b);
     ageOptions.value = [
       { label: '全部', value: null },
@@ -210,14 +229,48 @@ async function fetchAgeOptions() {
   }
 }
 
-// 3. 生命週期 - 在 onMounted 中發送 API 請求，拿取資料
+async function fetchCategoryOptions() {
+  try {
+    const res = await apiClient.get(apiConfig.endpoints.categoryOptions, {
+      headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
+    });
+    const list = Array.isArray(res.data) ? res.data : [];
+    const normalized: CategoryOption[] = list
+      .filter((o) => o && typeof o.label === 'string' && typeof o.value === 'string')
+      .map((o) => ({ label: o.label, value: o.value }));
+
+    categoryOptions.value = normalized;
+
+    // 若尚未選定分類且有資料，預設選第一個
+    if (!activeCategoryId.value && normalized.length > 0) {
+      const first = normalized.at(0);
+      if (first) activeCategoryId.value = first.value;
+    }
+  } catch (e) {
+    console.error('取得分類選項失敗，使用預設分類文案。', e);
+    // 後備：根據既有內部類別提供預設四大類
+    const fallback: CategoryOption[] = [
+      { label: '動作發展', value: 'fallback-motion' },
+      { label: '認知發展', value: 'fallback-cognitive' },
+      { label: '語言溝通', value: 'fallback-language' },
+      { label: '社會與情感', value: 'fallback-social' },
+    ];
+    categoryOptions.value = fallback;
+    if (!activeCategoryId.value) {
+      const first = fallback.at(0);
+      if (first) activeCategoryId.value = first.value;
+    }
+  }
+}
+
+// 3. 生命週期
 onMounted(async () => {
   try {
     const response = await fetch(`${apiConfig.baseUrl}${apiConfig.endpoints.milestones}`, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
-        'Accept-Language': 'zh_TW', // 指定語言
+        'Accept-Language': 'zh_TW',
       },
     });
 
@@ -227,18 +280,16 @@ onMounted(async () => {
 
     const data: Milestone[] = await response.json();
     milestones.value = data;
-    console.log('取得資料:', data);
-
-    // 資料載入後，從進度更新已達成里程碑
     updateAchievedMilestonesFromProgress();
   } catch (error) {
     console.error('Error fetching flash-card data:', error);
   }
-  // 無論成功或失敗，都嘗試載入年齡選項（後端失敗則有後備方案）
+  // 載入 options（年齡、分類）
   await fetchAgeOptions();
+  await fetchCategoryOptions();
 });
 
-// 監聽選定寶寶的變化，更新已達成的里程碑
+// 監聽選定寶寶的變化
 watch(
   () => userStore.selectedBaby,
   () => {
@@ -247,7 +298,7 @@ watch(
   { deep: true },
 );
 
-// 根據選擇的年齡 id，找出對應的月齡（以 label 推斷）
+// 根據選擇的年齡 id，找出對應的月齡
 const selectedMonth = computed<number | null>(() => {
   if (!selectedAgeId.value) return null;
   const opt = ageOptions.value.find((o) => o.value === selectedAgeId.value);
@@ -255,7 +306,39 @@ const selectedMonth = computed<number | null>(() => {
   return parseMonthFromLabel(opt.label);
 });
 
-// 4. 邏輯函式
+// 根據選擇的分類 id，取得對應的內部類別鍵陣列
+const selectedInternalCategories = computed<string[] | null>(() => {
+  if (!activeCategoryId.value) return null;
+  const opt = categoryOptions.value.find((o) => o.value === activeCategoryId.value);
+  if (!opt) return null;
+  return mapCategoryLabelToInternal(opt.label);
+});
+
+// 依照年齡篩選
+const filteredMilestones = computed((): Milestone[] => {
+  if (selectedMonth.value === null) {
+    return milestones.value;
+  }
+  return milestones.value.filter((milestone) => milestone.ageInMonths === selectedMonth.value);
+});
+
+// 根據分類過濾，並將已達成的排在最後
+const filteredMilestonesByCategory = computed((): Milestone[] => {
+  const list = filteredMilestones.value;
+  const cats = selectedInternalCategories.value;
+  const filtered = !cats || cats.length === 0
+    ? list
+    : list.filter((m) => cats.includes(m.category));
+
+  return filtered.sort((a, b) => {
+    const aAchieved = isAchieved(a.id);
+    const bAchieved = isAchieved(b.id);
+    if (aAchieved && !bAchieved) return 1;
+    if (!aAchieved && bAchieved) return -1;
+    return 0;
+  });
+});
+
 function flipCard(id: number): void {
   if (isCardFlipped(id)) {
     flippedCards.value = flippedCards.value.filter((cardId) => cardId !== id);
@@ -272,118 +355,48 @@ function isAchieved(id: number): boolean {
   return achievedMilestones.value.includes(id);
 }
 
-// 依照年齡篩選里程碑（以解析出的單一月齡進行等值過濾）
-const filteredMilestones = computed((): Milestone[] => {
-  if (selectedMonth.value === null) {
-    return milestones.value;
-  }
-  return milestones.value.filter((milestone) => milestone.ageInMonths === selectedMonth.value);
-});
-
-// 獲取所有類別
-const categories = computed((): string[] => {
-  const categorySet = new Set<string>();
-  filteredMilestones.value.forEach((milestone) => {
-    categorySet.add(milestone.category);
-  });
-  return Array.from(categorySet);
-});
-
-// 根據當前 activeCategory 過濾里程碑，並將已達成的排在最後
-const filteredMilestonesByCategory = computed((): Milestone[] => {
-  return filteredMilestones.value
-    .filter((milestone) => milestone.category === activeCategory.value)
-    .sort((a, b) => {
-      // 已達成的排序到最後
-      const aAchieved = isAchieved(a.id);
-      const bAchieved = isAchieved(b.id);
-
-      if (aAchieved && !bAchieved) return 1; // a 已達成但 b 未達成，a 排後面
-      if (!aAchieved && bAchieved) return -1; // a 未達成但 b 已達成，a 排前面
-      return 0; // 兩者狀態相同，保持原順序
-    });
-});
-
 function resetFilters() {
   selectedAgeId.value = null;
-  // 可以視需要重設 activeCategory
-}
-
-// 顯示對應的中文分類名稱
-function getCategoryTitle(category: string): string {
-  const categoryMap: Record<string, string> = {
-    'massive motion': '大動作發展',
-    'fine motor': '精細動作',
-    cognitive: '認知發展',
-    language: '語言發展',
-    social: '社交發展',
-  };
-  return categoryMap[category] || category;
+  // 分類保���當前選擇；如需清空可設 activeCategoryId.value = null
 }
 
 // 切換里程碑狀態並呼叫 API
 async function toggleMilestoneStatus(flashcardId: number, checked: boolean): Promise<void> {
-  // 如果沒有登入或沒有選擇寶寶，顯示提示
   if (!userStore.isLoggedIn || !userStore.selectedBaby) {
-    Notify.create({
-      // Use Notify.create instead of $q.notify
-      type: 'warning',
-      message: '請先登入並選擇寶寶',
-      position: 'top',
-    });
+    Notify.create({ type: 'warning', message: '請先登入並選擇寶寶', position: 'top' });
     return;
   }
 
   try {
-    // 開始載入
     isLoading.value = true;
 
-    // 預先更新本地狀態，提供即時反饋
     if (checked) {
-      // 如果要標記為已達成，先加入到本地列表
       if (!achievedMilestones.value.includes(flashcardId)) {
         achievedMilestones.value.push(flashcardId);
       }
     } else {
-      // 如果要標記為未達成，從本地列表中移除
       achievedMilestones.value = achievedMilestones.value.filter((id) => id !== flashcardId);
     }
 
-    // 準備 API 請求內容
     const requestBody = {
       babyId: userStore.selectedBaby.id,
       flashcardId: flashcardId,
     };
 
-    // 使用 apiHelper 發送 API 請求
     const updatedBaby = await apiPost<Baby>('/flash-card/check-progress', requestBody);
-    console.log('API返回的更新後寶寶資料:', updatedBaby);
-
-    // 更新 Pinia 儲存的寶寶資訊
     userStore.updateSelectedBaby(updatedBaby);
-    // 從後端返回的資料重新更新已達成里程碑列表，確保與後端同步
     updateAchievedMilestonesFromProgress();
 
-    // 顯示成功通知
     Notify.create({
-      // Use Notify.create instead of $q.notify
       type: 'positive',
       message: checked ? '里程碑達成！' : '已取消達成狀態',
       position: 'top',
     });
   } catch (error) {
     console.error('Error updating milestone status:', error);
-    Notify.create({
-      // Use Notify.create instead of $q.notify
-      type: 'negative',
-      message: '更新里程碑狀態時發生錯誤',
-      position: 'top',
-    });
-
-    // 發生錯誤時還原本地狀態
+    Notify.create({ type: 'negative', message: '更新里程碑狀態時發生錯誤', position: 'top' });
     updateAchievedMilestonesFromProgress();
   } finally {
-    // 結束載入
     isLoading.value = false;
   }
 }
