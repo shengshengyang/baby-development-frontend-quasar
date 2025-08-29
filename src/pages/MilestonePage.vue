@@ -65,7 +65,7 @@
           v-for="milestone in filteredMilestonesByCategory"
           :key="milestone.id"
           class="milestone-card q-ma-sm"
-          :class="{ achieved: isAchieved(milestone.id) }"
+          :class="statusClass(milestone.id)"
           @click="flipCard(milestone.id)"
         >
           <q-card-section
@@ -91,20 +91,13 @@
               <!-- 只有登入用戶才顯示進度狀態按鈕組 -->
               <div v-if="userStore.isLoggedIn" class="milestone-status q-pa-sm" @click.stop>
                 <div class="status-label q-mb-xs text-caption">進度狀態：</div>
-                <q-btn-toggle
-                  :model-value="getMilestoneStatus(milestone.id)"
-                  @update:model-value="updateMilestoneStatus(milestone.id, $event)"
-                  toggle-color="primary"
-                  :options="[
-                    { label: '未開始', value: 'NOT_STARTED', color: 'grey-6' },
-                    { label: '已開始', value: 'IN_PROGRESS', color: 'orange' },
-                    { label: '已完成', value: 'COMPLETED', color: 'positive' }
-                  ]"
-                  dense
-                  no-caps
-                  size="sm"
-                  class="milestone-status-toggle"
-                />
+                <!-- 新：點擊開啟彈窗選擇狀態 -->
+                <div class="row items-center clickable q-pa-xs rounded-borders status-pill" @click="openStatusDialog(milestone.id)">
+                  <StatusIcon :status="getMilestoneStatus(milestone.id)" :size="14" />
+                  <span class="q-ml-sm text-body2">{{ getProgressStatusDisplayName(getMilestoneStatus(milestone.id)) }}</span>
+                  <q-space />
+                  <q-icon name="expand_more" size="16px" />
+                </div>
                 <!-- 完成日期顯示 -->
                 <div v-if="getMilestoneStatus(milestone.id) === 'COMPLETED'" class="achievement-date q-mt-sm">
                   達成於：{{ formatDate(getAchievementDate(milestone.id)) }}
@@ -150,6 +143,37 @@
         </q-card-section>
       </q-card>
     </q-dialog>
+
+    <!-- 狀態選擇彈窗 -->
+    <q-dialog v-model="statusDialog.open">
+      <q-card style="min-width: 280px">
+        <q-card-section class="text-subtitle1">更新進度狀態</q-card-section>
+        <q-separator />
+        <q-list bordered padding>
+          <q-item clickable v-ripple @click="selectStatus(ProgressStatus.NOT_STARTED)">
+            <q-item-section avatar>
+              <StatusIcon :status="ProgressStatus.NOT_STARTED" :size="16" />
+            </q-item-section>
+            <q-item-section>未開始</q-item-section>
+          </q-item>
+          <q-item clickable v-ripple @click="selectStatus(ProgressStatus.IN_PROGRESS)">
+            <q-item-section avatar>
+              <StatusIcon :status="ProgressStatus.IN_PROGRESS" :size="16" />
+            </q-item-section>
+            <q-item-section>已開始</q-item-section>
+          </q-item>
+          <q-item clickable v-ripple @click="selectStatus(ProgressStatus.COMPLETED)">
+            <q-item-section avatar>
+              <StatusIcon :status="ProgressStatus.COMPLETED" :size="16" />
+            </q-item-section>
+            <q-item-section>已完成</q-item-section>
+          </q-item>
+        </q-list>
+        <q-card-actions align="right">
+          <q-btn flat color="grey-7" label="取消" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -166,6 +190,7 @@ import {
   type UpdateProgressRequest
 } from 'src/api/services/progressService';
 import type { Progress } from 'src/components/models';
+import StatusIcon from 'src/components/StatusIcon.vue';
 
 // 1. 定義介面
 interface Milestone {
@@ -231,19 +256,22 @@ const isLoading = ref(false);
 // 額外：列表資料讀取進度（切換年齡/分類時使用）
 const isFetching = ref(false);
 
-// 獲取里程碑的當前狀態
-function getMilestoneStatus(flashcardId: string): ProgressStatus {
-  if (!userStore.selectedBaby?.progresses) return ProgressStatus.NOT_STARTED;
+// 狀態彈窗狀態
+const statusDialog = ref<{ open: boolean; milestoneId: string | null }>({ open: false, milestoneId: null });
 
-  const progress = userStore.selectedBaby.progresses.find(
-    (p) => String(p.flashcardId) === flashcardId
+// 獲取里程碑的當前狀態（以 milestoneId 為主；相容 flashcardId 舊資料）
+function getMilestoneStatus(milestoneId: string): ProgressStatus {
+  const progresses = userStore.selectedBaby?.progresses;
+  if (!progresses) return ProgressStatus.NOT_STARTED;
+
+  const progress = progresses.find(
+    (p) => String(p.milestoneId) === milestoneId || String(p.flashcardId) === milestoneId
   );
-
-  return progress?.status || ProgressStatus.NOT_STARTED;
+  return progress?.status ?? ProgressStatus.NOT_STARTED;
 }
 
-// 更新里程碑狀態（使用新的三種狀態系統）
-async function updateMilestoneStatus(flashcardId: string, newStatus: ProgressStatus): Promise<void> {
+// 更新里程碑狀態（以 milestoneId 為主）
+async function updateMilestoneStatus(milestoneId: string, newStatus: ProgressStatus): Promise<void> {
   if (!userStore.isLoggedIn || !userStore.selectedBaby) {
     Notify.create({ type: 'warning', message: '請先登入並選擇寶寶', position: 'top' });
     return;
@@ -252,28 +280,21 @@ async function updateMilestoneStatus(flashcardId: string, newStatus: ProgressSta
   try {
     isLoading.value = true;
 
-    // 準備請求數據
     const requestData: UpdateProgressRequest = {
       babyId: userStore.selectedBaby.id,
       status: newStatus,
-      flashcardId: flashcardId,
+      milestoneId: milestoneId,
       date: new Date().toISOString()
     };
 
-    // 調用新的 API
     await updateProgressStatus(requestData);
 
-    // 重新獲取寶寶資料以更新進度
-    // 這裡假設有一個 API 可以獲取更新後的寶寶資料
-    // 如果沒有，可能需要手動更新本地狀態
-
     // 更新本地狀態
-    updateLocalProgressStatus(flashcardId, newStatus);
+    updateLocalProgressStatus(milestoneId, newStatus);
 
     // 更新已達成的里程碑列表
     updateAchievedMilestonesFromProgress();
 
-    // 顯示成功訊息
     const statusDisplayName = getProgressStatusDisplayName(newStatus);
     Notify.create({
       type: 'positive',
@@ -288,31 +309,31 @@ async function updateMilestoneStatus(flashcardId: string, newStatus: ProgressSta
   }
 }
 
-// 更新本地進度狀態
-function updateLocalProgressStatus(flashcardId: string, status: ProgressStatus): void {
+// 更新本地進度狀態（以 milestoneId 為主）
+function updateLocalProgressStatus(milestoneId: string, status: ProgressStatus): void {
   const selectedBaby = userStore.selectedBaby;
   if (!selectedBaby?.progresses) return;
 
-  const existingProgressIndex = selectedBaby.progresses.findIndex(
-    (p) => String(p.flashcardId) === flashcardId
+  const idx = selectedBaby.progresses.findIndex(
+    (p) => String(p.milestoneId) === milestoneId || String(p.flashcardId) === milestoneId
   );
 
-  if (existingProgressIndex >= 0) {
-    // 更新現有進度記錄（加上安全檢查）
-    const existing = selectedBaby.progresses[existingProgressIndex];
+  if (idx >= 0) {
+    const existing = selectedBaby.progresses[idx];
     if (existing) {
       existing.status = status;
+      // 將舊資料的 flashcardId 合併成 milestoneId（若尚未有）
+      if (!existing.milestoneId) existing.milestoneId = milestoneId;
       if (status === ProgressStatus.COMPLETED) {
         existing.date = new Date().toISOString();
       }
     }
   } else {
-    // 創建新的進度記錄
     const newProgress: Progress = {
-      id: `temp-${Date.now()}`, // 臨時 ID，應該從後端響應中獲取
+      id: `temp-${Date.now()}`,
       babyId: selectedBaby.id,
-      status: status,
-      flashcardId: flashcardId,
+      status,
+      milestoneId,
       date: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -321,157 +342,48 @@ function updateLocalProgressStatus(flashcardId: string, status: ProgressStatus):
   }
 }
 
-// 從選定寶寶的進度中更新已達成的里程碑（更新為使用新狀態系統）
+// 從選定寶寶的進度中更新已達成的里程碑（以 milestoneId 為主）
 function updateAchievedMilestonesFromProgress() {
-  if (userStore.isLoggedIn && userStore.selectedBaby?.progresses) {
-    achievedMilestones.value = userStore.selectedBaby.progresses
-      .filter((progress) => progress.status === ProgressStatus.COMPLETED)
-      .map((progress) => String(progress.flashcardId));
+  const progresses = userStore.selectedBaby?.progresses;
+  if (userStore.isLoggedIn && progresses) {
+    achievedMilestones.value = progresses
+      .filter((p) => p.status === ProgressStatus.COMPLETED)
+      .map((p) => String(p.milestoneId ?? p.flashcardId));
   }
 }
 
-// 獲取達成日期（更新為使用新狀態系統）
-function getAchievementDate(flashcardId: string): string | null {
-  if (!userStore.selectedBaby?.progresses) return null;
-  const progress = userStore.selectedBaby.progresses.find(
-    (p) => String(p.flashcardId) === flashcardId && p.status === ProgressStatus.COMPLETED,
+// 獲取達成日期（以 milestoneId 為主）
+function getAchievementDate(milestoneId: string): string | null {
+  const progresses = userStore.selectedBaby?.progresses;
+  if (!progresses) return null;
+  const progress = progresses.find(
+    (p) => (String(p.milestoneId) === milestoneId || String(p.flashcardId) === milestoneId) && p.status === ProgressStatus.COMPLETED,
   );
   return progress ? progress.date : null;
 }
 
-// 檢查是否已達成（更新為使用新狀態系統）
-function isAchieved(id: string): boolean {
-  return getMilestoneStatus(id) === ProgressStatus.COMPLETED;
+// 開啟狀態選擇彈窗（傳入 milestoneId）
+function openStatusDialog(milestoneId: string) {
+  statusDialog.value = { open: true, milestoneId };
 }
 
-// 新增：根據選擇的篩選條件獲取里程碑數據
-async function fetchMilestones() {
-  try {
-    isFetching.value = true;
-
-    const params = new URLSearchParams();
-
-    // 只有當選擇的不是「全部」(null/undefined) 且為合法字串時才添加參數
-    if (isValidId(selectedAgeId.value)) {
-      params.append('ageId', selectedAgeId.value);
-    }
-
-    if (isValidId(activeCategoryId.value)) {
-      params.append('categoryId', activeCategoryId.value);
-    }
-
-    const url = `${apiConfig.baseUrl}${apiConfig.endpoints.milestones}${params.toString() ? '?' + params.toString() : ''}`;
-
-    console.log('API 請求 URL:', url);
-    console.log('發送的參數:', {
-      ageId: selectedAgeId.value,
-      categoryId: activeCategoryId.value,
-      actualParams: params.toString(),
-    });
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        'Accept-Language': 'zh_TW',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-
-    milestones.value = (await response.json()) as Milestone[];
-    updateAchievedMilestonesFromProgress();
-  } catch (error) {
-    console.error('Error fetching milestone data:', error);
-    console.error('請求的 URL:', `${apiConfig.baseUrl}${apiConfig.endpoints.milestones}`);
-    console.error('選中的年齡 ID:', selectedAgeId.value);
-    console.error('選中的分類 ID:', activeCategoryId.value);
-
-    Notify.create({
-      type: 'negative',
-      message: '載入里程碑資料時發生錯誤',
-      position: 'top',
-    });
-  } finally {
-    isFetching.value = false;
-  }
+// 選擇狀態
+async function selectStatus(status: ProgressStatus) {
+  const id = statusDialog.value.milestoneId;
+  if (!id) return;
+  await updateMilestoneStatus(id, status);
+  statusDialog.value.open = false;
 }
 
-async function fetchAgeOptions() {
-  try {
-    const res = await apiClient.get(apiConfig.endpoints.ageOptions, {
-      headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
-    });
-    const list = Array.isArray(res.data) ? res.data : [];
-    const normalized: AgeOption[] = list
-      .filter((o) => o && typeof o.label === 'string' && 'value' in o)
-      .map((o) => ({ label: o.label, value: String(o.value) }));
-
-    ageOptions.value = [{ label: '全部', value: null }, ...normalized];
-  } catch (e) {
-    console.error('取得年齡選項失敗，使用預設選項作為後備。', e);
-    // 後備選項
-    ageOptions.value = [{ label: '全部', value: null }];
-  }
+// 卡片依狀態設置樣式 class
+function statusClass(milestoneId: string) {
+  const s = getMilestoneStatus(milestoneId);
+  return {
+    'status-not-started': s === ProgressStatus.NOT_STARTED,
+    'status-in-progress': s === ProgressStatus.IN_PROGRESS,
+    'status-completed': s === ProgressStatus.COMPLETED,
+  };
 }
-
-async function fetchCategoryOptions() {
-  try {
-    const res = await apiClient.get(apiConfig.endpoints.categoryOptions, {
-      headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
-    });
-    const list = Array.isArray(res.data) ? res.data : [];
-    const normalized: CategoryOption[] = list
-      .filter((o) => o && typeof o.label === 'string' && typeof o.value === 'string')
-      .map((o) => ({ label: o.label, value: o.value }));
-
-    // 添加「全部」選項到最前面
-    categoryOptions.value = [{ label: '全部', value: null }, ...normalized];
-
-    // 若尚未選定分類，預設選第一個（全部）
-    if (!activeCategoryId.value) {
-      activeCategoryId.value = null; // 預設為「全部」
-    }
-  } catch (e) {
-    console.error('取得分類選項失敗，使用預設分類文案。', e);
-    // 後備：根據既有內部類別提供預設四大類
-    categoryOptions.value = [
-      { label: '全部', value: null },
-      { label: '動作發展', value: 'fallback-motion' },
-      { label: '認知發展', value: 'fallback-cognitive' },
-      { label: '語言溝通', value: 'fallback-language' },
-      { label: '社會與情感', value: 'fallback-social' },
-    ];
-    if (!activeCategoryId.value) {
-      activeCategoryId.value = null; // 預設為「全部」
-    }
-  }
-}
-
-// 工具：檢查是否為有效的 ID（非空字串，且不為 'null' 或 'undefined'）
-function isValidId(val: unknown): val is string {
-  return typeof val === 'string' && val.trim() !== '' && val !== 'null' && val !== 'undefined';
-}
-
-// 分類 tab 切換時，將「全部」標準化為 null
-function onCategoryTabChange(val: string | number | undefined) {
-  if (val === 'ALL' || val === undefined || val === '') {
-    activeCategoryId.value = null;
-  } else {
-    activeCategoryId.value = String(val);
-  }
-}
-
-// 3. 生命週期
-onMounted(async () => {
-  // 載入 options（年齡、分類）
-  await fetchAgeOptions();
-  await fetchCategoryOptions();
-  // 初始載入里程碑數據
-  await fetchMilestones();
-});
 
 // 監聽選定寶寶的變化
 watch(
@@ -588,6 +500,103 @@ function formatDate(dateString: string | null): string {
   const date = new Date(dateString);
   return date.toLocaleDateString('zh-TW');
 }
+
+// 工具：檢查是否為有效的 ID（非空字串，且不為 'null' 或 'undefined'）
+function isValidId(val: unknown): val is string {
+  return typeof val === 'string' && val.trim() !== '' && val !== 'null' && val !== 'undefined';
+}
+
+// 分類 tab 切換時，將「全部」標準化為 null
+function onCategoryTabChange(val: string | number | undefined) {
+  if (val === 'ALL' || val === undefined || val === '') {
+    activeCategoryId.value = null;
+  } else {
+    activeCategoryId.value = String(val);
+  }
+}
+
+// 判斷是否已達成
+function isAchieved(id: string): boolean {
+  return getMilestoneStatus(id) === ProgressStatus.COMPLETED;
+}
+
+// 依篩選條件抓取里程碑
+async function fetchMilestones() {
+  try {
+    isFetching.value = true;
+
+    const params = new URLSearchParams();
+    if (isValidId(selectedAgeId.value)) params.append('ageId', selectedAgeId.value);
+    if (isValidId(activeCategoryId.value)) params.append('categoryId', activeCategoryId.value);
+
+    const url = `${apiConfig.baseUrl}${apiConfig.endpoints.milestones}${params.toString() ? '?' + params.toString() : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
+    });
+    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+
+    milestones.value = (await response.json()) as Milestone[];
+    updateAchievedMilestonesFromProgress();
+  } catch (err) {
+    console.error('Error fetching milestone data:', err);
+    Notify.create({ type: 'negative', message: '載入里程碑資料時發生錯誤', position: 'top' });
+  } finally {
+    isFetching.value = false;
+  }
+}
+
+// 取年齡選項
+async function fetchAgeOptions() {
+  try {
+    const res = await apiClient.get(apiConfig.endpoints.ageOptions, {
+      headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
+    });
+    const list = Array.isArray(res.data) ? res.data : [];
+    const normalized: AgeOption[] = list
+      .filter((o) => o && typeof o.label === 'string' && 'value' in o)
+      .map((o) => ({ label: o.label, value: String(o.value) }));
+
+    ageOptions.value = [{ label: '全部', value: null }, ...normalized];
+  } catch (e) {
+    console.error('取得年齡選項失敗', e);
+    ageOptions.value = [{ label: '全部', value: null }];
+  }
+}
+
+// 取分類選項
+async function fetchCategoryOptions() {
+  try {
+    const res = await apiClient.get(apiConfig.endpoints.categoryOptions, {
+      headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
+    });
+    const list = Array.isArray(res.data) ? res.data : [];
+    const normalized: CategoryOption[] = list
+      .filter((o) => o && typeof o.label === 'string' && typeof o.value === 'string')
+      .map((o) => ({ label: o.label, value: o.value }));
+
+    categoryOptions.value = [{ label: '全部', value: null }, ...normalized];
+    if (!activeCategoryId.value) activeCategoryId.value = null;
+  } catch (e) {
+    console.error('取得分類選項失敗', e);
+    categoryOptions.value = [
+      { label: '全部', value: null },
+      { label: '動作發展', value: 'fallback-motion' },
+      { label: '認知發展', value: 'fallback-cognitive' },
+      { label: '語言溝通', value: 'fallback-language' },
+      { label: '社會與情感', value: 'fallback-social' },
+    ];
+    if (!activeCategoryId.value) activeCategoryId.value = null;
+  }
+}
+
+// 掛載時初始化
+onMounted(async () => {
+  await fetchAgeOptions();
+  await fetchCategoryOptions();
+  await fetchMilestones();
+});
 </script>
 
 <style lang="scss">
@@ -649,6 +658,11 @@ body.body--dark {
       color: rgba(255, 255, 255, 0.7);
     }
   }
+
+  // 為不同狀態添加樣式
+  .milestone-card.status-not-started { border-left-color: #bdbdbd; background: rgba(255,255,255,0.02); }
+  .milestone-card.status-in-progress { border-left-color: #ffa726; background: rgba(255,255,255,0.02); }
+  .milestone-card.status-completed { border-left-color: #2ecc71; background: rgba(255,255,255,0.02); }
 }
 
 // 加入載入遮罩樣式
@@ -721,6 +735,25 @@ body.body--dark {
       padding: 8px;
     }
   }
+}
+
+// 為不同狀態添加樣式
+.milestone-card.status-not-started {
+  border-left: 4px solid #9e9e9e;
+  background: rgba(158, 158, 158, 0.04);
+}
+.milestone-card.status-in-progress {
+  border-left: 4px solid #fb8c00;
+  background: rgba(251, 140, 0, 0.04);
+}
+.milestone-card.status-completed {
+  border-left: 4px solid #21ba45;
+  background: rgba(33, 186, 69, 0.04);
+}
+
+// 狀態 pill
+.status-pill {
+  border: 1px solid rgba(0,0,0,0.06);
 }
 </style>
 
