@@ -5,6 +5,9 @@
       <p class="text-subtitle1 q-mb-lg">追��您寶寶的成長與發展階段</p>
     </div>
 
+    <!-- 頂部讀取條：切換年齡/分類重載資料時顯示 -->
+    <q-linear-progress v-if="isFetching" indeterminate color="primary" class="q-mb-md" />
+
     <!-- 年齡分組選擇器 -->
     <div class="age-filter q-mb-lg">
       <div class="age-selector-container">
@@ -206,6 +209,9 @@ const activeCategoryId = ref<string | null>(null);
 // 增加 loading 狀態
 const isLoading = ref(false);
 
+// 額外：列表資料讀取進度（切換年齡/分類時使用）
+const isFetching = ref(false);
+
 // 從選定寶寶的進度中更新已達成的里程碑
 function updateAchievedMilestonesFromProgress() {
   if (userStore.isLoggedIn && userStore.selectedBaby?.progresses) {
@@ -284,6 +290,8 @@ async function fetchCategoryOptions() {
 // 新增：根據選擇的篩選條件獲取里程碑數據
 async function fetchMilestones() {
   try {
+    isFetching.value = true;
+
     const params = new URLSearchParams();
 
     // 只有當選擇的不是「全部」(null/undefined) 且為合法字串時才添加參數
@@ -330,6 +338,8 @@ async function fetchMilestones() {
       message: '載入里程碑資料時發生錯誤',
       position: 'top',
     });
+  } finally {
+    isFetching.value = false;
   }
 }
 
@@ -478,9 +488,9 @@ function goToNextAge() {
 
 // 方法：根據當前索引更新選定的年齡
 function updateSelectedAge() {
-  if (currentAgeIndex.value !== null && typeof currentAgeIndex.value === 'number' &&
-      currentAgeIndex.value >= 0 && currentAgeIndex.value < ageOptions.value.length) {
-    const ageOption = ageOptions.value[currentAgeIndex.value];
+  const idx = currentAgeIndex.value;
+  if (idx !== null && idx >= 0 && idx < ageOptions.value.length) {
+    const ageOption = ageOptions.value[idx];
     if (ageOption) {
       selectedAgeId.value = ageOption.value;
     }
