@@ -7,15 +7,35 @@
 
     <!-- 年齡分組選擇器 -->
     <div class="age-filter q-mb-lg">
-      <q-select
-        v-model="selectedAgeId"
-        :options="ageOptions"
-        label="年齡篩選"
-        outlined
-        emit-value
-        map-options
-        class="age-selector"
-      />
+      <div class="age-selector-container">
+        <q-btn
+          :disabled="!canGoToPreviousAge"
+          icon="chevron_left"
+          flat
+          round
+          color="primary"
+          @click="goToPreviousAge"
+          class="age-nav-btn"
+        />
+        <q-select
+          v-model="selectedAgeId"
+          :options="ageOptions"
+          label="年齡篩選"
+          outlined
+          emit-value
+          map-options
+          class="age-selector"
+        />
+        <q-btn
+          :disabled="!canGoToNextAge"
+          icon="chevron_right"
+          flat
+          round
+          color="primary"
+          @click="goToNextAge"
+          class="age-nav-btn"
+        />
+      </div>
     </div>
 
     <!-- 分類 Tabs：使用後端 options -->
@@ -25,11 +45,12 @@
       dense
       align="justify"
       indicator-color="primary"
+      @update:model-value="onCategoryTabChange"
     >
       <q-tab
         v-for="opt in categoryOptions"
-        :key="opt.value || 'all'"
-        :name="opt.value || undefined"
+        :key="opt.value ?? 'ALL'"
+        :name="opt.value ?? 'ALL'"
         :label="opt.label"
       />
     </q-tabs>
@@ -265,17 +286,23 @@ async function fetchMilestones() {
   try {
     const params = new URLSearchParams();
 
-    // 添加年齡參數
-    if (selectedAgeId.value) {
+    // 只有當選擇的不是「全部」(null/undefined) 且為合法字串時才添加參數
+    if (isValidId(selectedAgeId.value)) {
       params.append('ageId', selectedAgeId.value);
     }
 
-    // 添加分類參數
-    if (activeCategoryId.value) {
+    if (isValidId(activeCategoryId.value)) {
       params.append('categoryId', activeCategoryId.value);
     }
 
     const url = `${apiConfig.baseUrl}${apiConfig.endpoints.milestones}${params.toString() ? '?' + params.toString() : ''}`;
+
+    console.log('API 請求 URL:', url);
+    console.log('發送的參數:', {
+      ageId: selectedAgeId.value,
+      categoryId: activeCategoryId.value,
+      actualParams: params.toString(),
+    });
 
     const response = await fetch(url, {
       method: 'GET',
@@ -294,11 +321,29 @@ async function fetchMilestones() {
     updateAchievedMilestonesFromProgress();
   } catch (error) {
     console.error('Error fetching milestone data:', error);
+    console.error('請求的 URL:', `${apiConfig.baseUrl}${apiConfig.endpoints.milestones}`);
+    console.error('選中的年齡 ID:', selectedAgeId.value);
+    console.error('選中的分類 ID:', activeCategoryId.value);
+
     Notify.create({
       type: 'negative',
       message: '載入里程碑資料時發生錯誤',
-      position: 'top'
+      position: 'top',
     });
+  }
+}
+
+// 工具：檢查是否為有效的 ID（非空字串，且不為 'null' 或 'undefined'）
+function isValidId(val: unknown): val is string {
+  return typeof val === 'string' && val.trim() !== '' && val !== 'null' && val !== 'undefined';
+}
+
+// 分類 tab 切換時，將「全部」標準化為 null
+function onCategoryTabChange(val: string | number | undefined) {
+  if (val === 'ALL' || val === undefined || val === '') {
+    activeCategoryId.value = null;
+  } else {
+    activeCategoryId.value = String(val);
   }
 }
 
@@ -400,6 +445,69 @@ async function toggleMilestoneStatus(flashcardId: string, checked: boolean): Pro
     isLoading.value = false;
   }
 }
+
+// 年齡導航邏輯
+const currentAgeIndex = ref<number | null>(null);
+
+// 計算屬性：判斷是否可以導航到上一個或下一個年齡層
+const canGoToPreviousAge = computed(() => {
+  if (currentAgeIndex.value === null) return false;
+  return currentAgeIndex.value > 0;
+});
+
+const canGoToNextAge = computed(() => {
+  if (currentAgeIndex.value === null) return false;
+  return currentAgeIndex.value < ageOptions.value.length - 1;
+});
+
+// 方法：導航到上一個年齡層
+function goToPreviousAge() {
+  if (canGoToPreviousAge.value) {
+    currentAgeIndex.value!--;
+    updateSelectedAge();
+  }
+}
+
+// 方法：導航到下一個年齡層
+function goToNextAge() {
+  if (canGoToNextAge.value) {
+    currentAgeIndex.value!++;
+    updateSelectedAge();
+  }
+}
+
+// 方法：根據當前索引更新選定的年齡
+function updateSelectedAge() {
+  if (currentAgeIndex.value !== null && typeof currentAgeIndex.value === 'number' &&
+      currentAgeIndex.value >= 0 && currentAgeIndex.value < ageOptions.value.length) {
+    const ageOption = ageOptions.value[currentAgeIndex.value];
+    if (ageOption) {
+      selectedAgeId.value = ageOption.value;
+    }
+  }
+}
+
+// 監聽年齡選擇變化，更新當前年齡索引
+watch(
+  selectedAgeId,
+  (newVal) => {
+    const index = ageOptions.value.findIndex((option) => option.value === newVal);
+    currentAgeIndex.value = index !== -1 ? index : 0; // 修正：如果找不到索引，設為 0（全部）
+  },
+);
+
+// 修正：更安全的初始化邏輯
+watch(
+  ageOptions,
+  () => {
+    // 當年齡選項載入完成後，重新設置當前索引
+    if (ageOptions.value.length > 0) {
+      const index = ageOptions.value.findIndex((option) => option.value === selectedAgeId.value);
+      currentAgeIndex.value = index !== -1 ? index : 0;
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <style lang="scss">
@@ -479,6 +587,50 @@ body.body--dark {
 // 為已達成的卡片添加特殊樣式
 .milestone-card.achieved {
   border-left: 4px solid #42b983;
+}
+
+// 年齡選擇器容器樣式
+.age-selector-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 400px;
+  margin: 0 auto;
+
+  .age-selector {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .age-nav-btn {
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+
+    &:hover:not(:disabled) {
+      background-color: rgba(var(--q-primary-rgb), 0.1);
+      transform: scale(1.05);
+    }
+
+    &:disabled {
+      opacity: 0.3;
+    }
+  }
+}
+
+// 響應式設計
+@media (max-width: 600px) {
+  .age-selector-container {
+    max-width: 100%;
+    gap: 8px;
+
+    .age-selector {
+      min-width: 150px;
+    }
+
+    .age-nav-btn {
+      padding: 8px;
+    }
+  }
 }
 </style>
 
