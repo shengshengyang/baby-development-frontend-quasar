@@ -37,6 +37,8 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { apiPost } from 'src/api/apiHelper';
 import { useUserStore } from 'src/stores/user';
+import type { UserData, Progress as StoreProgress } from 'src/stores/user';
+import { ProgressStatus } from 'src/api/services/progressService';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -50,18 +52,73 @@ interface LoginResponse {
   role: string[];
   token: string;
   babies: {
-    id: number; // Make sure id is included
+    id: number;
     name: string;
     birthDate: string;
+    gender?: 'MALE' | 'FEMALE';
+    createdAt?: string;
+    updatedAt?: string;
     progresses: {
+      id?: string;
       babyId: number;
-      flashcardId: number;
-      ageInMonths: number;
-      category: string;
-      achieved: boolean;
-      dateAchieved: string;
+      flashcardId?: number;
+      milestoneId?: string;
+      videoId?: string;
+      ageInMonths?: number;
+      category?: string;
+      achieved?: boolean;
+      dateAchieved?: string;
+      status?: string;
+      date?: string;
+      createdAt?: string;
+      updatedAt?: string;
     }[];
   }[];
+}
+
+// 類型轉換函數：將 LoginResponse 轉換為 UserData
+function convertLoginResponseToUserData(loginResponse: LoginResponse): UserData {
+  return {
+    username: loginResponse.username,
+    email: loginResponse.email,
+    role: loginResponse.role,
+    token: loginResponse.token,
+    babies: loginResponse.babies.map(baby => ({
+      id: String(baby.id), // 轉換 number 為 string
+      name: baby.name,
+      birthDate: baby.birthDate,
+      gender: baby.gender || 'MALE', // 設定預設值
+      createdAt: baby.createdAt || new Date().toISOString(),
+      updatedAt: baby.updatedAt || new Date().toISOString(),
+      progresses: baby.progresses.map(progress => {
+        let status: ProgressStatus;
+        if (progress.status === 'COMPLETED') {
+          status = ProgressStatus.COMPLETED;
+        } else if (progress.status === 'IN_PROGRESS') {
+          status = ProgressStatus.IN_PROGRESS;
+        } else if (progress.achieved) {
+          status = ProgressStatus.COMPLETED;
+        } else {
+          status = ProgressStatus.NOT_STARTED;
+        }
+
+        return {
+          id: progress.id || `temp-${Date.now()}-${Math.random()}`, // 生成臨時 ID
+          babyId: String(progress.babyId), // 轉換為 string
+          status,
+          flashcardId: progress.flashcardId ? String(progress.flashcardId) : undefined,
+          milestoneId: progress.milestoneId || undefined,
+          videoId: progress.videoId || undefined,
+          date: progress.date || progress.dateAchieved || new Date().toISOString(),
+          createdAt: progress.createdAt || new Date().toISOString(),
+          updatedAt: progress.updatedAt || new Date().toISOString(),
+        };
+      }).filter(progress => {
+        // 過濾掉無效的進度記錄，確保必要欄位都存在
+        return progress.id && progress.babyId && progress.status && progress.date;
+      }) as StoreProgress[]
+    }))
+  };
 }
 
 async function onLogin() {
@@ -72,8 +129,9 @@ async function onLogin() {
     });
     console.log('登入成功:', result);
 
-    // 將返回的使用者資料儲存到 Pinia 全域 store 中
-    userStore.setUser(result);
+    // 轉換類型並儲存到 Pinia 全域 store 中
+    const userData = convertLoginResponseToUserData(result);
+    userStore.setUser(userData);
 
     // 導航至 milestone 頁面
     router.push('/milestone').catch((err) => {

@@ -71,10 +71,13 @@ const saveBaby = async () => {
       userStore.userData.babies = userStore.userData.babies || [];
       // 使用 API 回傳的資料，包含 id
       userStore.userData.babies.push({
-        id: response.id,
+        id: String(response.id), // 轉換 number 為 string
         name: response.name || babyName.value,
         birthDate: response.birthDate || birthDate.value,
+        gender: 'MALE', // 設定預設值，後續可能需要從表單獲取
         progresses: [], // 初始進度為空
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
 
       // 將新增的寶寶設為預設寶寶
