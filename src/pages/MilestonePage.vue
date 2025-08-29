@@ -28,8 +28,8 @@
     >
       <q-tab
         v-for="opt in categoryOptions"
-        :key="opt.value"
-        :name="opt.value"
+        :key="opt.value || 'all'"
+        :name="opt.value || undefined"
         :label="opt.label"
       />
     </q-tabs>
@@ -50,14 +50,14 @@
           >
             <div class="milestone-front">
               <div class="milestone-image">
-                <q-img :src="milestone.imageUrl || ''" class="milestone-img" />
+                <q-img :src="milestone.imageBase64 || ''" class="milestone-img" />
                 <q-badge color="primary" class="age-badge"
-                  >{{ milestone.ageInMonths }} 個月</q-badge
+                  >{{ milestone.age.displayName }}</q-badge
                 >
               </div>
               <div class="milestone-content q-pa-md">
                 <div class="text-h6">
-                  {{ milestone.frontText }}
+                  {{ milestone.description }}
                 </div>
                 <!-- 已達成日期顯示 -->
                 <div v-if="isAchieved(milestone.id)" class="achievement-date q-mt-sm">
@@ -78,7 +78,12 @@
             <div class="milestone-back">
               <div class="milestone-back-content q-pa-md">
                 <div class="text-h6 q-mb-md">詳細資訊</div>
-                <p>{{ milestone.backText }}</p>
+                <p>{{ milestone.description }}</p>
+                <div v-if="milestone.videoUrl" class="q-mt-md">
+                  <a :href="milestone.videoUrl" target="_blank" class="text-primary">
+                    觀看影片
+                  </a>
+                </div>
               </div>
               <q-btn
                 flat
@@ -121,14 +126,36 @@ import apiClient from 'src/api/apiClient';
 
 // 1. 定義介面
 interface Milestone {
-  id: number;
-  category: string; // 內部分類鍵：如 'massive motion' | 'fine motor' | 'cognitive' | 'language' | 'social'
-  milestoneId: number;
-  ageInMonths: number;
-  languageCode: string;
-  frontText: string;
-  backText: string;
-  imageUrl: string;
+  id: string;
+  age: {
+    id: string;
+    month: number;
+    displayName: string;
+    displayNameObject: {
+      en: string;
+      tw: string;
+      ja: string;
+      cn: string;
+      vi: string;
+      ko: string;
+    };
+  };
+  category: {
+    id: string;
+    name: string;
+    nameObject: {
+      en: string;
+      tw: string;
+      ja: string;
+      cn: string;
+      vi: string;
+      ko: string;
+    };
+  };
+  description: string;
+  descriptionObject: unknown;
+  videoUrl: string | null;
+  imageBase64: string | null;
 }
 
 interface AgeOption {
@@ -138,14 +165,14 @@ interface AgeOption {
 
 interface CategoryOption {
   label: string;
-  value: string; // 從後端取得的分類 id
+  value: string | null; // 從後端取得的分類 id；全部用 null
 }
 
 // 2. 響應式資料
 const milestones = ref<Milestone[]>([]);
 const userStore = useUserStore();
-const flippedCards = ref<number[]>([]);
-const achievedMilestones = ref<number[]>([]);
+const flippedCards = ref<string[]>([]);
+const achievedMilestones = ref<string[]>([]);
 
 // 年齡相關
 const selectedAgeId = ref<string | null>(null);
@@ -163,14 +190,14 @@ function updateAchievedMilestonesFromProgress() {
   if (userStore.isLoggedIn && userStore.selectedBaby?.progresses) {
     achievedMilestones.value = userStore.selectedBaby.progresses
       .filter((progress) => progress.achieved)
-      .map((progress) => progress.flashcardId);
+      .map((progress) => String(progress.flashcardId));
   }
 }
 
-function getAchievementDate(flashcardId: number): string | null {
+function getAchievementDate(flashcardId: string): string | null {
   if (!userStore.selectedBaby?.progresses) return null;
   const progress = userStore.selectedBaby.progresses.find(
-    (p) => p.flashcardId === flashcardId && p.achieved,
+    (p) => String(p.flashcardId) === flashcardId && p.achieved,
   );
   return progress ? progress.dateAchieved : null;
 }
@@ -179,33 +206,6 @@ function formatDate(dateString: string | null): string {
   if (!dateString) return '';
   const date = new Date(dateString);
   return date.toLocaleDateString('zh-TW');
-}
-
-// 解析年齡 label -> 月齡
-function parseMonthFromLabel(label: string): number | null {
-  if (!label) return null;
-  if (label.includes('新生兒')) return 0;
-  const m = label.match(/(\d+)/);
-  if (m) return Number(m[1]);
-  return null;
-}
-
-// 解析分類 label -> 對應內部里���碑類別鍵陣列
-function mapCategoryLabelToInternal(label: string): string[] | null {
-  switch (label) {
-    case '動作發展':
-      return ['massive motion', 'fine motor'];
-    case '認知發展':
-      return ['cognitive'];
-    case '語言溝通':
-    case '語言發展': // 兼容舊文案
-      return ['language'];
-    case '社會與情感':
-    case '社交發展': // 兼容舊文案
-      return ['social'];
-    default:
-      return null; // 未知則不過濾
-  }
 }
 
 async function fetchAgeOptions() {
@@ -220,12 +220,9 @@ async function fetchAgeOptions() {
 
     ageOptions.value = [{ label: '全部', value: null }, ...normalized];
   } catch (e) {
-    console.error('取得年齡選項失敗，使用本地里程碑推導的選項作為後備。', e);
-    const uniqueAges = [...new Set(milestones.value.map((m) => m.ageInMonths))].sort((a, b) => a - b);
-    ageOptions.value = [
-      { label: '全部', value: null },
-      ...uniqueAges.map((age) => ({ label: `${age} 個月`, value: String(age) })),
-    ];
+    console.error('取得年齡選項失敗，使用預設選項作為後備。', e);
+    // 後備選項
+    ageOptions.value = [{ label: '全部', value: null }];
   }
 }
 
@@ -239,17 +236,18 @@ async function fetchCategoryOptions() {
       .filter((o) => o && typeof o.label === 'string' && typeof o.value === 'string')
       .map((o) => ({ label: o.label, value: o.value }));
 
-    categoryOptions.value = normalized;
+    // 添加「全部」選項到最前面
+    categoryOptions.value = [{ label: '全部', value: null }, ...normalized];
 
-    // 若尚未選定分類且有資料，預設選第一個
-    if (!activeCategoryId.value && normalized.length > 0) {
-      const first = normalized.at(0);
-      if (first) activeCategoryId.value = first.value;
+    // 若尚未選定分類，預設選第一個（全部）
+    if (!activeCategoryId.value) {
+      activeCategoryId.value = null; // 預設為「全部」
     }
   } catch (e) {
     console.error('取得分類選項失敗，使用預設分類文案。', e);
     // 後備：根據既有內部類別提供預設四大類
     const fallback: CategoryOption[] = [
+      { label: '全部', value: null },
       { label: '動作發展', value: 'fallback-motion' },
       { label: '認知發展', value: 'fallback-cognitive' },
       { label: '語言溝通', value: 'fallback-language' },
@@ -257,16 +255,29 @@ async function fetchCategoryOptions() {
     ];
     categoryOptions.value = fallback;
     if (!activeCategoryId.value) {
-      const first = fallback.at(0);
-      if (first) activeCategoryId.value = first.value;
+      activeCategoryId.value = null; // 預設為「全部」
     }
   }
 }
 
-// 3. 生命週期
-onMounted(async () => {
+// 新增：根據選擇的篩選條件獲取里程碑數據
+async function fetchMilestones() {
   try {
-    const response = await fetch(`${apiConfig.baseUrl}${apiConfig.endpoints.milestones}`, {
+    const params = new URLSearchParams();
+
+    // 添加年齡參數
+    if (selectedAgeId.value) {
+      params.append('ageId', selectedAgeId.value);
+    }
+
+    // 添加分類參數
+    if (activeCategoryId.value) {
+      params.append('categoryId', activeCategoryId.value);
+    }
+
+    const url = `${apiConfig.baseUrl}${apiConfig.endpoints.milestones}${params.toString() ? '?' + params.toString() : ''}`;
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -282,11 +293,22 @@ onMounted(async () => {
     milestones.value = data;
     updateAchievedMilestonesFromProgress();
   } catch (error) {
-    console.error('Error fetching flash-card data:', error);
+    console.error('Error fetching milestone data:', error);
+    Notify.create({
+      type: 'negative',
+      message: '載入里程碑資料時發生錯誤',
+      position: 'top'
+    });
   }
+}
+
+// 3. 生命週期
+onMounted(async () => {
   // 載入 options（年齡、分類）
   await fetchAgeOptions();
   await fetchCategoryOptions();
+  // 初始載入里程碑數據
+  await fetchMilestones();
 });
 
 // 監聽選定寶寶的變化
@@ -298,39 +320,17 @@ watch(
   { deep: true },
 );
 
-// 根據選擇的年齡 id，找出對應的月齡
-const selectedMonth = computed<number | null>(() => {
-  if (!selectedAgeId.value) return null;
-  const opt = ageOptions.value.find((o) => o.value === selectedAgeId.value);
-  if (!opt) return null;
-  return parseMonthFromLabel(opt.label);
-});
-
-// 根據選擇的分類 id，取得對應的內部類別鍵陣列
-const selectedInternalCategories = computed<string[] | null>(() => {
-  if (!activeCategoryId.value) return null;
-  const opt = categoryOptions.value.find((o) => o.value === activeCategoryId.value);
-  if (!opt) return null;
-  return mapCategoryLabelToInternal(opt.label);
-});
-
-// 依照年齡篩選
-const filteredMilestones = computed((): Milestone[] => {
-  if (selectedMonth.value === null) {
-    return milestones.value;
+// 監聽篩選條件變化，重新獲取數據
+watch(
+  [selectedAgeId, activeCategoryId],
+  async () => {
+    await fetchMilestones();
   }
-  return milestones.value.filter((milestone) => milestone.ageInMonths === selectedMonth.value);
-});
+);
 
-// 根據分類過濾，並將已達成的排在最後
+// 由於 API 已經根據參數進行篩選，直接使用 milestones 數據並排序
 const filteredMilestonesByCategory = computed((): Milestone[] => {
-  const list = filteredMilestones.value;
-  const cats = selectedInternalCategories.value;
-  const filtered = !cats || cats.length === 0
-    ? list
-    : list.filter((m) => cats.includes(m.category));
-
-  return filtered.sort((a, b) => {
+  return [...milestones.value].sort((a, b) => {
     const aAchieved = isAchieved(a.id);
     const bAchieved = isAchieved(b.id);
     if (aAchieved && !bAchieved) return 1;
@@ -339,7 +339,7 @@ const filteredMilestonesByCategory = computed((): Milestone[] => {
   });
 });
 
-function flipCard(id: number): void {
+function flipCard(id: string): void {
   if (isCardFlipped(id)) {
     flippedCards.value = flippedCards.value.filter((cardId) => cardId !== id);
   } else {
@@ -347,21 +347,21 @@ function flipCard(id: number): void {
   }
 }
 
-function isCardFlipped(id: number): boolean {
+function isCardFlipped(id: string): boolean {
   return flippedCards.value.includes(id);
 }
 
-function isAchieved(id: number): boolean {
+function isAchieved(id: string): boolean {
   return achievedMilestones.value.includes(id);
 }
 
 function resetFilters() {
   selectedAgeId.value = null;
-  // 分類保���當前選擇；如需清空可設 activeCategoryId.value = null
+  activeCategoryId.value = null; // 重設為「全部」
 }
 
 // 切換里程碑狀態並呼叫 API
-async function toggleMilestoneStatus(flashcardId: number, checked: boolean): Promise<void> {
+async function toggleMilestoneStatus(flashcardId: string, checked: boolean): Promise<void> {
   if (!userStore.isLoggedIn || !userStore.selectedBaby) {
     Notify.create({ type: 'warning', message: '請先登入並選擇寶寶', position: 'top' });
     return;
