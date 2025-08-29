@@ -18,6 +18,7 @@ export interface Progress {
   milestoneId?: string;
   videoId?: string;
   date: string;
+  startedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

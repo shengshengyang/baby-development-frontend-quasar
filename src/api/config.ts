@@ -15,6 +15,8 @@ export const apiConfig = {
     login: '/auth/login',
     // 寶寶相關
     createBaby: '/baby',
+    // 進度相關
+    progressByBaby: '/api/progress/baby/{babyId}',
     // 疫苗相關
     vaccineSchedules: '/baby/{babyId}/schedules',
     updateVaccineSchedule: '/baby/{babyId}/schedules/{scheduleId}',

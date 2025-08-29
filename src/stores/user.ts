@@ -10,6 +10,7 @@ export interface Progress {
   milestoneId?: string;
   videoId?: string;
   date: string;
+  startedAt?: string; // 可選的 startedAt 欄位
   createdAt: string;
   updatedAt: string;
 }

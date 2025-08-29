@@ -83,6 +83,10 @@
                 <div class="text-h6">
                   {{ milestone.description }}
                 </div>
+                <!-- 開始日期顯示 -->
+                <div v-if="getStartDate(milestone.id)" class="start-date q-mt-xs">
+                  開始於：{{ formatDate(getStartDate(milestone.id)) }}
+                </div>
                 <!-- 已達成日期顯示 -->
                 <div v-if="isAchieved(milestone.id)" class="achievement-date q-mt-sm">
                   達成於：{{ formatDate(getAchievementDate(milestone.id)) }}
@@ -90,7 +94,6 @@
               </div>
               <!-- 只有登入用戶才顯示進度狀態按鈕組 -->
               <div v-if="userStore.isLoggedIn" class="milestone-status q-pa-sm" @click.stop>
-                <div class="status-label q-mb-xs text-caption">進度狀態：</div>
                 <!-- 新：點擊開啟彈窗選擇狀態 -->
                 <div class="row items-center clickable q-pa-xs rounded-borders status-pill" @click="openStatusDialog(milestone.id)">
                   <StatusIcon :status="getMilestoneStatus(milestone.id)" :size="14" />
@@ -98,10 +101,7 @@
                   <q-space />
                   <q-icon name="expand_more" size="16px" />
                 </div>
-                <!-- 完成日期顯示 -->
-                <div v-if="getMilestoneStatus(milestone.id) === 'COMPLETED'" class="achievement-date q-mt-sm">
-                  達成於：{{ formatDate(getAchievementDate(milestone.id)) }}
-                </div>
+                <!-- 移除：狀態區塊不再顯示達成日期，避免重複顯示 -->
               </div>
             </div>
 
@@ -187,7 +187,8 @@ import {
   updateProgressStatus,
   ProgressStatus,
   getProgressStatusDisplayName,
-  type UpdateProgressRequest
+  type UpdateProgressRequest,
+  fetchBabyProgresses,
 } from 'src/api/services/progressService';
 import type { Progress } from 'src/components/models';
 import StatusIcon from 'src/components/StatusIcon.vue';
@@ -259,6 +260,53 @@ const isFetching = ref(false);
 // 狀態彈窗狀態
 const statusDialog = ref<{ open: boolean; milestoneId: string | null }>({ open: false, milestoneId: null });
 
+// 後端進度 -> Store 進度映射
+function mapProgressResponseToStoreProgress(resp: {
+  id: string;
+  babyId: string;
+  flashcardId?: string | null;
+  milestoneId?: string | null;
+  progressStatus: string;
+  dateAchieved?: string | null;
+  dateStarted?: string | null;
+}): Progress {
+  const status = (resp.progressStatus as keyof typeof ProgressStatus) in ProgressStatus
+    ? (ProgressStatus[resp.progressStatus as keyof typeof ProgressStatus])
+    : ProgressStatus.NOT_STARTED;
+
+  const base = {
+    id: resp.id,
+    babyId: String(resp.babyId),
+    status,
+    // date 作為達成日期（若有）
+    date: resp.dateAchieved ?? '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as Progress;
+
+  return {
+    ...base,
+    ...(resp.flashcardId ? { flashcardId: String(resp.flashcardId) } : {}),
+    ...(resp.milestoneId ? { milestoneId: String(resp.milestoneId) } : {}),
+    ...(resp.dateStarted ? { startedAt: resp.dateStarted } : {}),
+  } as Progress;
+}
+
+// 取得並同步選定寶寶的進度（以後端為準）
+async function fetchAndSyncBabyProgresses() {
+  const baby = userStore.selectedBaby;
+  if (!userStore.isLoggedIn || !baby) return;
+  try {
+    const list = await fetchBabyProgresses(baby.id);
+    const mapped: Progress[] = list.map(mapProgressResponseToStoreProgress);
+    // 用 store action 更新選定寶寶的 progresses
+    userStore.updateSelectedBaby({ ...baby, progresses: mapped });
+    updateAchievedMilestonesFromProgress();
+  } catch (e) {
+    console.error('同步寶寶進度失敗:', e);
+  }
+}
+
 // 獲取里程碑的當前狀態（以 milestoneId 為主；相容 flashcardId 舊資料）
 function getMilestoneStatus(milestoneId: string): ProgressStatus {
   const progresses = userStore.selectedBaby?.progresses;
@@ -289,11 +337,12 @@ async function updateMilestoneStatus(milestoneId: string, newStatus: ProgressSta
 
     await updateProgressStatus(requestData);
 
-    // 更新本地狀態
+    // 先本地更新，增加即時回饋
     updateLocalProgressStatus(milestoneId, newStatus);
-
-    // 更新已達成的里程碑列表
     updateAchievedMilestonesFromProgress();
+
+    // 再向後端同步一次，確保最終狀態一致
+    await fetchAndSyncBabyProgresses();
 
     const statusDisplayName = getProgressStatusDisplayName(newStatus);
     Notify.create({
@@ -309,6 +358,16 @@ async function updateMilestoneStatus(milestoneId: string, newStatus: ProgressSta
   }
 }
 
+// 獲取開始日期
+function getStartDate(milestoneId: string): string | null {
+  const progresses = userStore.selectedBaby?.progresses;
+  if (!progresses) return null;
+  const progress = progresses.find(
+    (p) => String(p.milestoneId) === milestoneId || String(p.flashcardId) === milestoneId
+  );
+  return progress?.startedAt ?? null;
+}
+
 // 更新本地進度狀態（以 milestoneId 為主）
 function updateLocalProgressStatus(milestoneId: string, status: ProgressStatus): void {
   const selectedBaby = userStore.selectedBaby;
@@ -322,27 +381,35 @@ function updateLocalProgressStatus(milestoneId: string, status: ProgressStatus):
     const existing = selectedBaby.progresses[idx];
     if (existing) {
       existing.status = status;
-      // 將舊資料的 flashcardId 合併成 milestoneId（若尚未有）
       if (!existing.milestoneId) existing.milestoneId = milestoneId;
+      if (status === ProgressStatus.IN_PROGRESS && !existing.startedAt) {
+        existing.startedAt = new Date().toISOString();
+      }
       if (status === ProgressStatus.COMPLETED) {
         existing.date = new Date().toISOString();
       }
     }
   } else {
-    const newProgress: Progress = {
+    const base = {
       id: `temp-${Date.now()}`,
       babyId: selectedBaby.id,
       status,
       milestoneId,
-      date: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    };
-    selectedBaby.progresses.push(newProgress);
+    } as Progress;
+
+    if (status === ProgressStatus.IN_PROGRESS) {
+      selectedBaby.progresses.push({ ...base, startedAt: new Date().toISOString(), date: new Date().toISOString() });
+    } else if (status === ProgressStatus.COMPLETED) {
+      selectedBaby.progresses.push({ ...base, date: new Date().toISOString() });
+    } else {
+      selectedBaby.progresses.push({ ...base, date: new Date().toISOString() });
+    }
   }
 }
 
-// 從選定寶寶的進度中更新已達成的里程碑（以 milestoneId 為主）
+// 更新已達成的里程碑列表
 function updateAchievedMilestonesFromProgress() {
   const progresses = userStore.selectedBaby?.progresses;
   if (userStore.isLoggedIn && progresses) {
@@ -591,11 +658,22 @@ async function fetchCategoryOptions() {
   }
 }
 
+// 監聽選定寶寶，切換時重新同步後端進度
+watch(
+  () => userStore.selectedBaby?.id,
+  async (id) => {
+    if (id) await fetchAndSyncBabyProgresses();
+  },
+  { immediate: true }
+);
+
 // 掛載時初始化
 onMounted(async () => {
   await fetchAgeOptions();
   await fetchCategoryOptions();
   await fetchMilestones();
+  // 補：初始化也同步進度
+  await fetchAndSyncBabyProgresses();
 });
 </script>
 
@@ -660,7 +738,7 @@ body.body--dark {
   }
 
   // 為不同狀態添加樣式
-  .milestone-card.status-not-started { border-left-color: #bdbdbd; background: rgba(255,255,255,0.02); }
+  .milestone-card.status-not-started { border-left: 0; background: transparent; }
   .milestone-card.status-in-progress { border-left-color: #ffa726; background: rgba(255,255,255,0.02); }
   .milestone-card.status-completed { border-left-color: #2ecc71; background: rgba(255,255,255,0.02); }
 }
@@ -721,6 +799,12 @@ body.body--dark {
   }
 }
 
+// 開始日期樣式
+.start-date {
+  font-size: 0.88rem;
+  color: #fb8c00; // orange，與進行中一致
+}
+
 // 響應式設計
 @media (max-width: 600px) {
   .age-selector-container {
@@ -739,8 +823,8 @@ body.body--dark {
 
 // 為不同狀態添加樣式
 .milestone-card.status-not-started {
-  border-left: 4px solid #9e9e9e;
-  background: rgba(158, 158, 158, 0.04);
+  border-left: 0;
+  background: transparent;
 }
 .milestone-card.status-in-progress {
   border-left: 4px solid #fb8c00;

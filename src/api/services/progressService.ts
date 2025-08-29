@@ -1,4 +1,6 @@
 import { apiPost } from '../apiHelper';
+import apiClient from '../apiClient';
+import { apiConfig } from '../config';
 
 // Progress Status 枚舉，對應後端的三種狀態
 export enum ProgressStatus {
@@ -13,6 +15,20 @@ export const ProgressStatusDisplayNames = {
   [ProgressStatus.IN_PROGRESS]: '已開始',
   [ProgressStatus.COMPLETED]: '已完成'
 } as const;
+
+// 後端回傳的進度資料型別（精簡）
+export interface BabyProgressResponse {
+  id: string;
+  babyId: string;
+  flashcardId?: string | null;
+  milestoneId?: string | null;
+  videoId?: string | null;
+  progressType?: string | null;
+  progressStatus: ProgressStatus | string;
+  categoryId?: string | null;
+  dateAchieved?: string | null;
+  dateStarted?: string | null;
+}
 
 // Progress 更新請求體接口
 export interface UpdateProgressRequest extends Record<string, unknown> {
@@ -35,6 +51,17 @@ export interface UpdateProgressResponse {
   date: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * 取得指定寶寶的進度列表（後端原始格式）
+ */
+export async function fetchBabyProgresses(babyId: string): Promise<BabyProgressResponse[]> {
+  const url = apiConfig.endpoints.progressByBaby.replace('{babyId}', encodeURIComponent(babyId));
+  const res = await apiClient.get<BabyProgressResponse[]>(url, {
+    headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
+  });
+  return Array.isArray(res.data) ? res.data : [];
 }
 
 /**
