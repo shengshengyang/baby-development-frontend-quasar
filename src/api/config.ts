@@ -6,11 +6,17 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 export const apiConfig = {
   baseUrl: apiBaseUrl,
   endpoints: {
-    milestones: '/open/flash-card',
+    milestones: '/api/milestone',
+    // 新增：年齡選項
+    ageOptions: '/api/options/ages',
+    // 新增：分類選項
+    categoryOptions: '/api/options/categories',
     // 認證相關
     login: '/auth/login',
     // 寶寶相關
     createBaby: '/baby',
+    // 進度相關
+    progressByBaby: '/api/progress/baby/{babyId}',
     // 疫苗相關
     vaccineSchedules: '/baby/{babyId}/schedules',
     updateVaccineSchedule: '/baby/{babyId}/schedules/{scheduleId}',

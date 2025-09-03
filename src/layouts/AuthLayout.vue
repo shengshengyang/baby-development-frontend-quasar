@@ -271,8 +271,14 @@ onMounted(() => {
 </script>
 
 <style lang="scss">
+@use 'sass:color';
+
 .app-header {
-  background: linear-gradient(135deg, var(--q-primary) 0%, darken($primary, 15%) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--q-primary) 0%,
+    color.adjust($primary, $lightness: -15%) 100%
+  );
 }
 
 .app-title {
@@ -300,7 +306,11 @@ onMounted(() => {
 
 .body--dark {
   .app-header {
-    background: linear-gradient(135deg, darken($primary, 20%) 0%, darken($primary, 35%) 100%);
+    background: linear-gradient(
+      135deg,
+      color.adjust($primary, $lightness: -20%) 0%,
+      color.adjust($primary, $lightness: -35%) 100%
+    );
   }
 
   // 確保主內容區在夜間模式下有正確的背景色
@@ -315,7 +325,7 @@ onMounted(() => {
 
   // 確保頁腳在夜間模式下有正確的背景色
   .q-footer {
-    background-color: darken($dark, 5%);
+    background-color: color.adjust($dark, $lightness: -5%);
   }
 }
 
@@ -342,7 +352,11 @@ onMounted(() => {
 
 // 暗黑模式下的回到頂部按鈕
 .body--dark .back-to-top-btn {
-  background: linear-gradient(135deg, var(--q-primary) 0%, darken($primary, 15%) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--q-primary) 0%,
+    color.adjust($primary, $lightness: -15%) 100%
+  );
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
 }
 

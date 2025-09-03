@@ -1,20 +1,28 @@
 // src/stores/user.ts
 import { defineStore } from 'pinia';
+import type { ProgressStatus } from 'src/api/services/progressService';
 
 export interface Progress {
-  babyId: number;
-  flashcardId: number;
-  ageInMonths: number;
-  category: string;
-  achieved: boolean;
-  dateAchieved: string;
+  id: string;
+  babyId: string;
+  status: ProgressStatus;
+  flashcardId?: string;
+  milestoneId?: string;
+  videoId?: string;
+  date: string;
+  startedAt?: string; // 可選的 startedAt 欄位
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Baby {
-  id: number; // Add missing id property
+  id: string;
   name: string;
   birthDate: string;
+  gender: 'MALE' | 'FEMALE';
   progresses: Progress[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UserData {
@@ -39,18 +47,19 @@ export const useUserStore = defineStore('user', {
 
     // Get the currently selected baby
     selectedBaby(): Baby | null {
-      if (!this.userData || !this.userData.babies || this.userData.babies.length === 0) {
+      const babies = this.userData?.babies ?? [];
+      if (babies.length === 0) {
         return null;
       }
 
       // If no baby is selected but babies exist, default to the first one
-      if (this.selectedBabyIndex === -1 && this.userData.babies.length > 0) {
-        return this.userData.babies[0] as Baby;
+      if (this.selectedBabyIndex === -1) {
+        return babies[0] as Baby;
       }
 
       // Return the selected baby if the index is valid
-      if (this.selectedBabyIndex >= 0 && this.selectedBabyIndex < this.userData.babies.length) {
-        return this.userData.babies[this.selectedBabyIndex] as Baby;
+      if (this.selectedBabyIndex >= 0 && this.selectedBabyIndex < babies.length) {
+        return babies[this.selectedBabyIndex] as Baby;
       }
 
       return null;
@@ -61,18 +70,14 @@ export const useUserStore = defineStore('user', {
     setUser(userData: UserData) {
       this.userData = userData;
       // Initialize selected baby to the first one if available
-      if (userData && userData.babies && userData.babies.length > 0) {
+      if (userData?.babies?.length) {
         this.selectedBabyIndex = 0;
       }
     },
 
     selectBaby(index: number) {
-      if (
-        this.userData &&
-        this.userData.babies &&
-        index >= 0 &&
-        index < this.userData.babies.length
-      ) {
+      const babies = this.userData?.babies;
+      if (babies && index >= 0 && index < babies.length) {
         this.selectedBabyIndex = index;
         // Store selection in localStorage for persistence
         localStorage.setItem('selectedBabyIndex', index.toString());
@@ -82,9 +87,10 @@ export const useUserStore = defineStore('user', {
     // Load the previously selected baby from localStorage on app initialization
     initSelectedBaby() {
       const savedIndex = localStorage.getItem('selectedBabyIndex');
-      if (savedIndex !== null && this.userData && this.userData.babies) {
+      const babies = this.userData?.babies;
+      if (savedIndex !== null && babies) {
         const index = parseInt(savedIndex);
-        if (index >= 0 && index < this.userData.babies.length) {
+        if (index >= 0 && index < babies.length) {
           this.selectedBabyIndex = index;
         }
       }
@@ -98,13 +104,12 @@ export const useUserStore = defineStore('user', {
 
     // 新增更新選定寶寶的方法
     updateSelectedBaby(babyData: Baby): void {
-      if (this.selectedBaby && this.selectedBaby.id === babyData.id) {
-        // Update the reference to selectedBaby directly
-        if (this.userData && this.userData.babies) {
-          // Find the baby in the userData.babies array and update it
-          const index = this.userData.babies.findIndex((baby) => baby.id === babyData.id);
+      if (this.selectedBaby?.id === babyData.id) {
+        const babies = this.userData?.babies;
+        if (babies) {
+          const index = babies.findIndex((baby) => baby.id === babyData.id);
           if (index !== -1) {
-            this.userData.babies[index] = babyData;
+            babies[index] = babyData;
           }
         }
       }
