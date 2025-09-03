@@ -2,7 +2,7 @@
   <q-page class="q-pa-md milestone-page">
     <div class="page-header">
       <h2 class="text-h4 text-primary q-mb-md">寶寶發展里程碑</h2>
-      <p class="text-subtitle1 q-mb-lg">追��您寶寶的成長與發展階段</p>
+      <p class="text-subtitle1 q-mb-lg">追蹤您寶寶的成長與發展階段</p>
     </div>
 
     <!-- 頂部讀取條：切換年齡/分類重載資料時顯示 -->
@@ -230,6 +230,23 @@ interface Milestone {
 interface AgeOption {
   label: string;
   value: string | null; // 從後端取得的 id；全部用 null
+  month?: number; // 新增：此選項代表的開始月齡（盡量填）
+  startMonth?: number; // 兼容可能的欄位
+  endMonth?: number;   // 兼容可能的欄位
+}
+
+// 新增：後端回傳的年齡選項型別（用於映射，避免 any）
+interface ApiAgeOption {
+  label: string;
+  value: string | number;
+  month?: number;
+  startMonth?: number;
+  endMonth?: number;
+}
+
+function isApiAgeOption(o: unknown): o is ApiAgeOption {
+  if (typeof o !== 'object' || o === null) return false;
+  return 'label' in o && 'value' in o;
 }
 
 interface CategoryOption {
@@ -246,6 +263,7 @@ const achievedMilestones = ref<string[]>([]);
 // 年齡相關
 const selectedAgeId = ref<string | null>(null);
 const ageOptions = ref<AgeOption[]>([{ label: '全部', value: null }]);
+const hasAutoSelectedAge = ref(false); // 一次性自動帶入標記
 
 // 分類相關（以 id 為 v-model）
 const categoryOptions = ref<CategoryOption[]>([]);
@@ -602,7 +620,12 @@ async function fetchMilestones() {
       method: 'GET',
       headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
     });
-    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+
+    if (!response.ok) {
+      Notify.create({ type: 'negative', message: `載入里程碑失敗（${response.status}）`, position: 'top' });
+      milestones.value = [];
+      return;
+    }
 
     milestones.value = (await response.json()) as Milestone[];
     updateAchievedMilestonesFromProgress();
@@ -621,11 +644,26 @@ async function fetchAgeOptions() {
       headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
     });
     const list = Array.isArray(res.data) ? res.data : [];
+
     const normalized: AgeOption[] = list
-      .filter((o) => o && typeof o.label === 'string' && 'value' in o)
-      .map((o) => ({ label: o.label, value: String(o.value) }));
+      .filter(isApiAgeOption)
+      .map((o) => {
+        const base: AgeOption = { label: o.label, value: String(o.value) };
+        const m = typeof o.month === 'number' ? o.month : parseMonthFromLabel(o.label);
+        const sm = typeof o.startMonth === 'number' ? o.startMonth : undefined;
+        const em = typeof o.endMonth === 'number' ? o.endMonth : undefined;
+        return {
+          ...base,
+          ...(typeof m === 'number' ? { month: m } : {}),
+          ...(typeof sm === 'number' ? { startMonth: sm } : {}),
+          ...(typeof em === 'number' ? { endMonth: em } : {}),
+        } as AgeOption;
+      });
 
     ageOptions.value = [{ label: '全部', value: null }, ...normalized];
+
+    // 取得選項後，嘗試自動帶入
+    if (!hasAutoSelectedAge.value) autoSelectAgeByBaby();
   } catch (e) {
     console.error('取得年齡選項失敗', e);
     ageOptions.value = [{ label: '全部', value: null }];
@@ -666,6 +704,83 @@ watch(
   },
   { immediate: true }
 );
+
+// ============ 新增：依寶寶月齡自動選齡邏輯 ============
+function computeBabyMonths(birthDateStr?: string | null): number | null {
+  if (!birthDateStr) return null;
+  const birthDate = new Date(birthDateStr);
+  if (isNaN(birthDate.getTime())) return null;
+  const today = new Date();
+  let months = (today.getFullYear() - birthDate.getFullYear()) * 12;
+  months += today.getMonth() - birthDate.getMonth();
+  if (today.getDate() < birthDate.getDate()) months--;
+  return Math.max(0, months);
+}
+
+function parseMonthFromLabel(label?: string): number | undefined {
+  if (!label) return undefined;
+  // 取第一個數字作為起始月齡，例如「6 個月」、「6-9 個月」-> 6
+  const match = label.match(/\d+/);
+  return match ? parseInt(match[0], 10) : undefined;
+}
+
+function getBestAgeOptionForMonths(months: number): AgeOption | undefined {
+  const opts = ageOptions.value.filter((o) => o.value !== null);
+  if (opts.length === 0) return undefined;
+
+  // 正規化：優先使用 month/startMonth，退化解析 label
+  type AgeOptionWithMaybeM = AgeOption & { _m?: number };
+  const withMonth = opts
+    .map((o): AgeOptionWithMaybeM => {
+      const m = o.month ?? o.startMonth ?? parseMonthFromLabel(o.label);
+      return typeof m === 'number' ? { ...o, _m: m } : { ...o };
+    })
+    .filter((o): o is AgeOption & { _m: number } => typeof (o as { _m?: number })._m === 'number');
+
+  if (withMonth.length === 0) return undefined;
+
+  // 先找不大於 months 的最大值；否則取最接近的最小值
+  const notGreater = withMonth.filter((o) => o._m <= months).sort((a, b) => b._m - a._m);
+  if (notGreater.length > 0) return notGreater[0];
+
+  const greater = withMonth.filter((o) => o._m > months).sort((a, b) => a._m - b._m);
+  return greater[0];
+}
+
+function autoSelectAgeByBaby() {
+  if (hasAutoSelectedAge.value) return;
+  if (!userStore.isLoggedIn) return;
+  const birth = userStore.selectedBaby?.birthDate; // 去除不必要的型別斷言
+  const months = computeBabyMonths(birth);
+  if (months === null) return;
+  const best = getBestAgeOptionForMonths(months);
+  if (best && best.value !== null) {
+    selectedAgeId.value = best.value;
+    hasAutoSelectedAge.value = true; // 僅自動一次，避免覆蓋使用者手動選擇
+  }
+}
+
+// 監聽：當年齡選項載入完成或寶寶切換時嘗試自動帶入
+watch(
+  [ageOptions, () => userStore.selectedBaby?.birthDate],
+  () => {
+    if (!hasAutoSelectedAge.value && ageOptions.value.length > 1) {
+      autoSelectAgeByBaby();
+    }
+  },
+  { deep: true, immediate: true }
+);
+
+// 若使用者切換寶寶，允許重新自動帶入
+watch(
+  () => userStore.selectedBaby?.id,
+  () => {
+    hasAutoSelectedAge.value = false;
+    // 當切換寶寶時，若仍在「全部」，可立即嘗試自動帶入
+    if (selectedAgeId.value === null) autoSelectAgeByBaby();
+  }
+);
+// ============ 原有邏輯與方法 ============
 
 // 掛載時初始化
 onMounted(async () => {

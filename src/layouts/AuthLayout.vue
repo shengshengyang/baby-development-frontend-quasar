@@ -78,24 +78,22 @@
       <router-view />
     </q-page-container>
 
-    <!-- Footer 區塊，只放首頁按鈕 -->
-    <q-footer elevated :class="{ 'footer-hidden': !isFooterVisible }">
-      <div class="row justify-center full-width q-pa-sm">
-        <q-btn
-          flat
-          label="首頁"
-          icon="home"
-          @click="router.push({ name: 'Milestone' })"
-          class="q-mx-sm"
-        />
-        <q-btn
-          flat
-          label="疫苗"
-          icon="vaccines"
-          @click="router.push({ name: 'Vaccine' })"
-          class="q-mx-sm"
-        />
-      </div>
+    <!-- Footer：底部分頁導覽 -->
+    <q-footer elevated class="footer-bar" :class="{ 'footer-hidden': !isFooterVisible }">
+      <q-tabs
+        class="text-grey-8 full-width footer-tabs"
+        dense
+        inline-label
+        no-caps
+        align="justify"
+        active-color="primary"
+        indicator-color="primary"
+      >
+        <q-route-tab :to="{ name: 'Home' }" icon="home" label="首頁" />
+        <q-route-tab :to="{ name: 'Milestone' }" icon="flag" label="里程碑" />
+        <q-route-tab :to="{ name: 'FlashCard' }" icon="quiz" label="小卡" />
+        <q-route-tab :to="{ name: 'Vaccine' }" icon="vaccines" label="疫苗" />
+      </q-tabs>
     </q-footer>
 
     <!-- 回到頂部按鈕 -->
@@ -304,6 +302,26 @@ onMounted(() => {
   transform: translateY(100%);
 }
 
+// 亮色主題下的底部欄設計（毛玻璃）
+.footer-bar {
+  background-color: rgba(255, 255, 255, 0.82); // 半透明白
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px); // Safari
+  color: #2c2c2c;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.06);
+  padding-bottom: env(safe-area-inset-bottom);
+
+  .footer-tabs {
+    color: #5f6368;
+
+    .q-tab__content { gap: 3px; }
+
+    .q-tab--active .q-tab__label,
+    .q-tab--active .q-icon { color: var(--q-primary); }
+  }
+}
+
 .body--dark {
   .app-header {
     background: linear-gradient(
@@ -314,18 +332,18 @@ onMounted(() => {
   }
 
   // 確保主內容區在夜間模式下有正確的背景色
-  .q-page-container {
-    background-color: $bg-dark;
-  }
+  .q-page-container { background-color: $bg-dark; }
+  .q-page { background-color: $bg-dark; }
 
-  // 確保頁面在夜間模式下有正確的背景色
-  .q-page {
-    background-color: $bg-dark;
-  }
-
-  // 確保頁腳在夜間模式下有正確的背景色
+  // 夜間主題下的底部欄（毛玻璃）
   .q-footer {
-    background-color: color.adjust($dark, $lightness: -5%);
+    background-color: rgba(16, 18, 20, 0.7);
+    backdrop-filter: saturate(140%) blur(12px);
+    -webkit-backdrop-filter: saturate(140%) blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.3);
+
+    .footer-tabs { color: rgba(255, 255, 255, 0.8); }
   }
 }
 
