@@ -7,6 +7,8 @@ export const apiConfig = {
   baseUrl: apiBaseUrl,
   endpoints: {
     milestones: '/api/milestone',
+    // 新增：flashcard 相關
+    flashcard: '/api/flashcard',
     // 新增：年齡選項
     ageOptions: '/api/options/ages',
     // 新增：分類選項
