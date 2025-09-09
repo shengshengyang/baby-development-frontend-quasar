@@ -116,10 +116,8 @@
                 </div>
                 <div class="text-h6 q-mb-xs">描述</div>
                 <div class="text-body1 q-mb-lg whitespace-pre-line">{{ milestoneDetailDialog.milestone?.description }}</div>
-                <q-btn v-if="userStore.isLoggedIn && milestoneDetailDialog.milestone" outline color="primary" @click="openStatusDialog(milestoneDetailDialog.milestone.id)">
-                  <StatusIcon :status="getMilestoneStatus(milestoneDetailDialog.milestone.id)" :size="14" class="q-mr-sm" />
-                  更新里程碑狀態 ({{ getProgressStatusDisplayName(getMilestoneStatus(milestoneDetailDialog.milestone.id)) }})
-                </q-btn>
+                <q-btn v-if="userStore.isLoggedIn && milestoneDetailDialog.milestone" size="sm" flat round :icon="flashcardStatusIcon(getMilestoneStatus(milestoneDetailDialog.milestone.id))" :color="flashcardStatusColor(getMilestoneStatus(milestoneDetailDialog.milestone.id))" @click.stop="cycleMilestoneStatus(milestoneDetailDialog.milestone.id)" />
+                <span v-if="milestoneDetailDialog.milestone" class="text-caption text-grey-7 q-ml-xs">{{ getProgressStatusDisplayName(getMilestoneStatus(milestoneDetailDialog.milestone.id)) }}</span>
               </div>
               <div class="col-12 col-md-5">
                 <div class="text-h6 q-mb-sm">相關 FlashCards</div>
@@ -387,6 +385,7 @@ const flashcardsOfCurrentMilestone = computed<MilestoneFlashcard[]>(() => milest
 function flashcardStatusIcon(status: ProgressStatus) { switch (status) { case ProgressStatus.COMPLETED: return 'check_circle'; case ProgressStatus.IN_PROGRESS: return 'play_circle'; default: return 'radio_button_unchecked'; } }
 function flashcardStatusColor(status: ProgressStatus) { switch (status) { case ProgressStatus.COMPLETED: return 'positive'; case ProgressStatus.IN_PROGRESS: return 'warning'; default: return 'grey'; } }
 async function cycleFlashcardStatus(flashcardId: string) { if (!userStore.isLoggedIn) return; const current = getFlashcardStatus(flashcardId); let next: ProgressStatus = ProgressStatus.NOT_STARTED; if (current === ProgressStatus.NOT_STARTED) next = ProgressStatus.IN_PROGRESS; else if (current === ProgressStatus.IN_PROGRESS) next = ProgressStatus.COMPLETED; await updateFlashcardStatus(flashcardId, next); }
+async function cycleMilestoneStatus(milestoneId: string) { if (!userStore.isLoggedIn) return; const current = getMilestoneStatus(milestoneId); let next: ProgressStatus = ProgressStatus.NOT_STARTED; if (current === ProgressStatus.NOT_STARTED) next = ProgressStatus.IN_PROGRESS; else if (current === ProgressStatus.IN_PROGRESS) next = ProgressStatus.COMPLETED; await updateMilestoneStatus(milestoneId, next); }
 
 onMounted(async () => { await fetchAgeOptions(); await fetchCategoryOptions(); await fetchMilestones(); await fetchAndSyncBabyProgresses(); });
 </script>
