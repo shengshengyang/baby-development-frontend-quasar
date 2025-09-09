@@ -54,9 +54,9 @@ export interface Milestone {
 export interface AgeOption {
   label: string;
   value: string | null;
-  month?: number;
-  startMonth?: number;
-  endMonth?: number;
+  month?: number | undefined;
+  startMonth?: number | undefined;
+  endMonth?: number | undefined;
 }
 
 // 後端原始年齡選項（value 可能是 number）
