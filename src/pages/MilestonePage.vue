@@ -42,7 +42,7 @@
       </div>
     </div>
 
-    <!-- 分類 Tabs：使用後端 options -->
+    <!-- 分類 Tabs -->
     <q-tabs
       v-model="activeCategoryId"
       class="q-mb-md"
@@ -59,72 +59,37 @@
       />
     </q-tabs>
 
-    <!-- 里程碑卡片區域 -->
+    <!-- 里程碑列表：簡化為 subject -->
     <div v-if="filteredMilestonesByCategory.length > 0">
-      <div class="milestone-cards-container">
+      <div class="milestone-simple-list">
         <q-card
           v-for="milestone in filteredMilestonesByCategory"
           :key="milestone.id"
-          class="milestone-card q-ma-sm"
+          class="milestone-simple-item q-mb-sm"
           :class="statusClass(milestone.id)"
-          @click="flipCard(milestone.id)"
+          clickable
+          flat
+          bordered
+          @click="openMilestoneDetail(milestone)"
         >
-          <q-card-section
-            class="milestone-card-inner"
-            :class="{ flipped: isCardFlipped(milestone.id) }"
-          >
-            <div class="milestone-front">
-              <div class="milestone-image">
-                <q-img :src="milestone.imageBase64 || ''" class="milestone-img" />
-                <q-badge color="primary" class="age-badge"
-                  >{{ milestone.age.displayName }}</q-badge
-                >
-              </div>
-              <div class="milestone-content q-pa-md">
-                <div class="text-h6">
-                  {{ milestone.description }}
-                </div>
-                <!-- 開始日期顯示 -->
-                <div v-if="getStartDate(milestone.id)" class="start-date q-mt-xs">
-                  開始於：{{ formatDate(getStartDate(milestone.id)) }}
-                </div>
-                <!-- 已達成日期顯示 -->
-                <div v-if="isAchieved(milestone.id)" class="achievement-date q-mt-sm">
-                  達成於：{{ formatDate(getAchievementDate(milestone.id)) }}
-                </div>
-              </div>
-              <!-- 只有登入用戶才顯示進度狀態按鈕組 -->
-              <div v-if="userStore.isLoggedIn" class="milestone-status q-pa-sm" @click.stop>
-                <!-- 新：點擊開啟彈窗選擇狀態 -->
-                <div class="row items-center clickable q-pa-xs rounded-borders status-pill" @click="openStatusDialog(milestone.id)">
-                  <StatusIcon :status="getMilestoneStatus(milestone.id)" :size="14" />
-                  <span class="q-ml-sm text-body2">{{ getProgressStatusDisplayName(getMilestoneStatus(milestone.id)) }}</span>
-                  <q-space />
-                  <q-icon name="expand_more" size="16px" />
-                </div>
-                <!-- 移除：狀態區塊不再顯示達成日期，避免重複顯示 -->
-              </div>
-            </div>
-
-            <div class="milestone-back">
-              <div class="milestone-back-content q-pa-md">
-                <div class="text-h6 q-mb-md">詳細資訊</div>
-                <p>{{ milestone.description }}</p>
-                <div v-if="milestone.videoUrl" class="q-mt-md">
-                  <a :href="milestone.videoUrl" target="_blank" class="text-primary">
-                    觀看影片
-                  </a>
-                </div>
-              </div>
-              <q-btn
-                flat
-                color="primary"
-                label="返回"
-                @click.stop="flipCard(milestone.id)"
-                class="q-ma-sm"
-              />
-            </div>
-          </q-card-section>
+          <q-item>
+            <q-item-section avatar>
+              <q-avatar square size="56px" class="bg-grey-2">
+                <q-img :src="milestone.imageBase64 || ''" ratio="1" fit="cover" />
+              </q-avatar>
+            </q-item-section>
+            <q-item-section>
+              <q-item-label class="text-subtitle1">{{ milestone.subject || milestone.description }}</q-item-label>
+              <q-item-label caption class="row items-center q-gutter-x-sm">
+                <q-badge color="primary" outline>{{ milestone.age.displayName }}</q-badge>
+                <q-badge color="secondary" outline>{{ milestone.category.name }}</q-badge>
+                <q-badge v-if="isAchieved(milestone.id)" color="positive" outline>已完成</q-badge>
+              </q-item-label>
+            </q-item-section>
+            <q-item-section side top>
+              <StatusIcon :status="getMilestoneStatus(milestone.id)" :size="20" />
+            </q-item-section>
+          </q-item>
         </q-card>
       </div>
     </div>
@@ -135,7 +100,7 @@
       <q-btn color="primary" label="查看全部" @click="resetFilters" class="q-mt-md" />
     </div>
 
-    <!-- 加入載入中遮罩 -->
+    <!-- 更新進度 loading 遮罩 -->
     <q-dialog v-model="isLoading" persistent>
       <q-card class="bg-transparent shadow-0">
         <q-card-section class="row items-center justify-center">
@@ -145,7 +110,7 @@
       </q-card>
     </q-dialog>
 
-    <!-- 狀態選擇彈窗 -->
+    <!-- 狀態選擇彈窗（里程碑進度） -->
     <q-dialog v-model="statusDialog.open">
       <q-card style="min-width: 280px">
         <q-card-section class="text-subtitle1">更新進度狀態</q-card-section>
@@ -175,6 +140,72 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- 里程碑詳細全螢幕彈窗 -->
+    <q-dialog v-model="milestoneDetailDialog.open" maximized persistent transition-show="slide-up" transition-hide="slide-down">
+      <q-card class="q-pa-none column fit">
+        <q-bar class="bg-primary text-white">
+          <div class="text-subtitle2">{{ milestoneDetailDialog.milestone?.subject || milestoneDetailDialog.milestone?.description }}</div>
+          <q-space />
+          <q-btn dense flat icon="close" @click="closeMilestoneDetail" />
+        </q-bar>
+        <q-scroll-area class="col">
+          <div class="q-pa-md">
+            <div class="row q-col-gutter-md items-start">
+              <div class="col-12 col-md-7">
+                <div v-if="milestoneDetailDialog.milestone?.videoUrl" class="video-wrapper q-mb-md">
+                  <video :src="milestoneDetailDialog.milestone?.videoUrl" controls style="width:100%;border-radius:8px;" />
+                </div>
+                <q-img v-else :src="milestoneDetailDialog.milestone?.imageBase64 || ''" ratio="16/9" class="q-mb-md rounded-borders" />
+                <div class="text-h6 q-mb-sm">描述</div>
+                <div class="text-body1 q-mb-md">{{ milestoneDetailDialog.milestone?.description }}</div>
+                <div class="row items-center q-gutter-sm q-mb-md">
+                  <q-badge color="primary" outline>{{ milestoneDetailDialog.milestone?.age.displayName }}</q-badge>
+                  <q-badge color="secondary" outline>{{ milestoneDetailDialog.milestone?.category.name }}</q-badge>
+                  <q-badge v-if="isAchieved(milestoneDetailDialog.milestone?.id || '')" color="positive" outline>已完成</q-badge>
+                </div>
+                <div class="q-mb-md">
+                  <q-btn dense outline color="primary" @click="openStatusDialog(milestoneDetailDialog.milestone!.id)">
+                    <StatusIcon :status="getMilestoneStatus(milestoneDetailDialog.milestone!.id)" :size="14" class="q-mr-sm" />
+                    更新里程碑狀態 ({{ getProgressStatusDisplayName(getMilestoneStatus(milestoneDetailDialog.milestone!.id)) }})
+                  </q-btn>
+                </div>
+              </div>
+              <div class="col-12 col-md-5">
+                <div class="text-h6 q-mb-sm">支援達成的 FlashCards</div>
+                <div v-if="flashcardsOfCurrentMilestone.length === 0" class="text-grey">無相關 FlashCards</div>
+                <div v-else>
+                  <div class="row items-center q-mb-sm">
+                    <q-linear-progress :value="flashcardCompletionRatio" color="positive" track-color="grey-3" style="width:180px" />
+                    <span class="text-caption q-ml-sm">{{ flashcardsCompleted }}/{{ flashcardsOfCurrentMilestone.length }} 已完成</span>
+                  </div>
+                  <q-list separator bordered class="rounded-borders">
+                    <q-item v-for="fc in flashcardsOfCurrentMilestone" :key="fc.id" class="flashcard-item">
+                      <q-item-section avatar>
+                        <q-avatar size="42px" square>
+                          <q-img :src="fc.imageUrl" ratio="1" fit="cover" />
+                        </q-avatar>
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label>{{ fc.subject }}</q-item-label>
+                        <q-item-label caption>{{ fc.description }}</q-item-label>
+                      </q-item-section>
+                      <q-item-section side top>
+                        <q-btn size="sm" flat round :icon="flashcardStatusIcon(getFlashcardStatus(fc.id))" :color="flashcardStatusColor(getFlashcardStatus(fc.id))" @click.stop="cycleFlashcardStatus(fc.id)" />
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                </div>
+              </div>
+            </div>
+          </div>
+        </q-scroll-area>
+        <q-separator />
+        <q-card-actions align="right" class="bg-grey-2">
+          <q-btn flat color="primary" label="關閉" @click="closeMilestoneDetail" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -193,39 +224,31 @@ import {
 } from 'src/api/services/progressService';
 import type { Progress } from 'src/components/models';
 import StatusIcon from 'src/components/StatusIcon.vue';
-// 新增：集中型別匯入
 import type {
   Milestone,
   AgeOption,
   CategoryOption,
+  MilestoneFlashcard
 } from 'src/types/milestone';
 import { isApiAgeOption } from 'src/types/milestone';
 
-// 2. 響應式資料
+// ============ 響應式狀態 ============
 const milestones = ref<Milestone[]>([]);
 const userStore = useUserStore();
-const flippedCards = ref<string[]>([]);
 const achievedMilestones = ref<string[]>([]);
-
-// 年齡相關
 const selectedAgeId = ref<string | null>(null);
 const ageOptions = ref<AgeOption[]>([{ label: '全部', value: null }]);
-const hasAutoSelectedAge = ref(false); // 一次性自動帶入標記
-
-// 分類相關（以 id 為 v-model）
+const hasAutoSelectedAge = ref(false);
 const categoryOptions = ref<CategoryOption[]>([]);
 const activeCategoryId = ref<string | null>(null);
-
-// 增加 loading 狀態
 const isLoading = ref(false);
-
-// 額外：列表資料讀取進度（切換年齡/分類時使用）
 const isFetching = ref(false);
-
-// 狀態彈窗狀態
 const statusDialog = ref<{ open: boolean; milestoneId: string | null }>({ open: false, milestoneId: null });
 
-// 後端進度 -> Store 進度映射
+// 新增：里程碑詳細彈窗狀態
+const milestoneDetailDialog = ref<{ open: boolean; milestone: Milestone | null }>({ open: false, milestone: null });
+
+// ============ Progress 映射與工具 ============
 function mapProgressResponseToStoreProgress(resp: {
   id: string;
   babyId: string;
@@ -243,7 +266,6 @@ function mapProgressResponseToStoreProgress(resp: {
     id: resp.id,
     babyId: String(resp.babyId),
     status,
-    // date 作為達成日期（若有）
     date: resp.dateAchieved ?? '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -257,14 +279,12 @@ function mapProgressResponseToStoreProgress(resp: {
   } as Progress;
 }
 
-// 取得並同步選定寶寶的進度（以後端為準）
 async function fetchAndSyncBabyProgresses() {
   const baby = userStore.selectedBaby;
   if (!userStore.isLoggedIn || !baby) return;
   try {
     const list = await fetchBabyProgresses(baby.id);
     const mapped: Progress[] = list.map(mapProgressResponseToStoreProgress);
-    // 用 store action 更新選定寶寶的 progresses
     userStore.updateSelectedBaby({ ...baby, progresses: mapped });
     updateAchievedMilestonesFromProgress();
   } catch (e) {
@@ -272,49 +292,42 @@ async function fetchAndSyncBabyProgresses() {
   }
 }
 
-// 獲取里程碑的當前狀態（以 milestoneId 為主；相容 flashcardId 舊資料）
 function getMilestoneStatus(milestoneId: string): ProgressStatus {
   const progresses = userStore.selectedBaby?.progresses;
   if (!progresses) return ProgressStatus.NOT_STARTED;
-
   const progress = progresses.find(
-    (p) => String(p.milestoneId) === milestoneId || String(p.flashcardId) === milestoneId
+    (p) => String(p.milestoneId) === milestoneId
   );
   return progress?.status ?? ProgressStatus.NOT_STARTED;
 }
 
-// 更新里程碑狀態（以 milestoneId 為主）
+function getFlashcardStatus(flashcardId: string): ProgressStatus {
+  const progresses = userStore.selectedBaby?.progresses;
+  if (!progresses) return ProgressStatus.NOT_STARTED;
+  const progress = progresses.find(
+    (p) => String(p.flashcardId) === flashcardId
+  );
+  return progress?.status ?? ProgressStatus.NOT_STARTED;
+}
+
 async function updateMilestoneStatus(milestoneId: string, newStatus: ProgressStatus): Promise<void> {
   if (!userStore.isLoggedIn || !userStore.selectedBaby) {
     Notify.create({ type: 'warning', message: '請先登入並選擇寶寶', position: 'top' });
     return;
   }
-
   try {
     isLoading.value = true;
-
     const requestData: UpdateProgressRequest = {
       babyId: userStore.selectedBaby.id,
       status: newStatus,
       milestoneId: milestoneId,
       date: new Date().toISOString()
     };
-
     await updateProgressStatus(requestData);
-
-    // 先本地更新，增加即時回饋
-    updateLocalProgressStatus(milestoneId, newStatus);
+    updateLocalProgressStatusByKey({ milestoneId }, newStatus);
     updateAchievedMilestonesFromProgress();
-
-    // 再向後端同步一次，確保最終狀態一致
     await fetchAndSyncBabyProgresses();
-
-    const statusDisplayName = getProgressStatusDisplayName(newStatus);
-    Notify.create({
-      type: 'positive',
-      message: `里程碑狀態已更新為：${statusDisplayName}`,
-      position: 'top',
-    });
+    Notify.create({ type: 'positive', message: `里程碑狀態已更新為：${getProgressStatusDisplayName(newStatus)}`, position: 'top' });
   } catch (error) {
     console.error('Error updating milestone status:', error);
     Notify.create({ type: 'negative', message: '更新里程碑狀態時發生錯誤', position: 'top' });
@@ -323,83 +336,69 @@ async function updateMilestoneStatus(milestoneId: string, newStatus: ProgressSta
   }
 }
 
-// 獲取開始日期
-function getStartDate(milestoneId: string): string | null {
-  const progresses = userStore.selectedBaby?.progresses;
-  if (!progresses) return null;
-  const progress = progresses.find(
-    (p) => String(p.milestoneId) === milestoneId || String(p.flashcardId) === milestoneId
-  );
-  return progress?.startedAt ?? null;
-}
-
-// 更新本地進度狀態（以 milestoneId 為主）
-function updateLocalProgressStatus(milestoneId: string, status: ProgressStatus): void {
-  const selectedBaby = userStore.selectedBaby;
-  if (!selectedBaby?.progresses) return;
-
-  const idx = selectedBaby.progresses.findIndex(
-    (p) => String(p.milestoneId) === milestoneId || String(p.flashcardId) === milestoneId
-  );
-
-  if (idx >= 0) {
-    const existing = selectedBaby.progresses[idx];
-    if (existing) {
-      existing.status = status;
-      if (!existing.milestoneId) existing.milestoneId = milestoneId;
-      if (status === ProgressStatus.IN_PROGRESS && !existing.startedAt) {
-        existing.startedAt = new Date().toISOString();
-      }
-      if (status === ProgressStatus.COMPLETED) {
-        existing.date = new Date().toISOString();
-      }
-    }
-  } else {
-    const base = {
-      id: `temp-${Date.now()}`,
-      babyId: selectedBaby.id,
-      status,
-      milestoneId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    } as Progress;
-
-    if (status === ProgressStatus.IN_PROGRESS) {
-      selectedBaby.progresses.push({ ...base, startedAt: new Date().toISOString(), date: new Date().toISOString() });
-    } else if (status === ProgressStatus.COMPLETED) {
-      selectedBaby.progresses.push({ ...base, date: new Date().toISOString() });
-    } else {
-      selectedBaby.progresses.push({ ...base, date: new Date().toISOString() });
-    }
+async function updateFlashcardStatus(flashcardId: string, newStatus: ProgressStatus): Promise<void> {
+  if (!userStore.isLoggedIn || !userStore.selectedBaby) {
+    Notify.create({ type: 'warning', message: '請先登入並選擇寶寶', position: 'top' });
+    return;
+  }
+  try {
+    const requestData: UpdateProgressRequest = {
+      babyId: userStore.selectedBaby.id,
+      status: newStatus,
+      flashcardId: flashcardId,
+      date: new Date().toISOString()
+    };
+    await updateProgressStatus(requestData);
+    updateLocalProgressStatusByKey({ flashcardId }, newStatus);
+    await fetchAndSyncBabyProgresses();
+  } catch (error) {
+    console.error('Error updating flashcard status:', error);
+    Notify.create({ type: 'negative', message: '更新 FlashCard 狀態失敗', position: 'top' });
   }
 }
 
-// 更新已達成的里程碑列表
+function updateLocalProgressStatusByKey(key: { milestoneId?: string; flashcardId?: string }, status: ProgressStatus) {
+  const selectedBaby = userStore.selectedBaby;
+  if (!selectedBaby) return;
+  const progresses = selectedBaby.progresses || (selectedBaby.progresses = [] as Progress[]);
+  const idx = progresses.findIndex((p) => (key.milestoneId && String(p.milestoneId) === key.milestoneId) || (key.flashcardId && String(p.flashcardId) === key.flashcardId));
+  if (idx >= 0) {
+    const existing = progresses[idx];
+    if (!existing) return; // 額外防護
+    existing.status = status;
+    if (key.milestoneId && !existing.milestoneId) existing.milestoneId = key.milestoneId;
+    if (key.flashcardId && !existing.flashcardId) existing.flashcardId = key.flashcardId;
+    if (status === ProgressStatus.IN_PROGRESS && !existing.startedAt) existing.startedAt = new Date().toISOString();
+    if (status === ProgressStatus.COMPLETED) existing.date = new Date().toISOString();
+  } else {
+    const base: Progress = {
+      id: `temp-${Date.now()}`,
+      babyId: selectedBaby.id,
+      status,
+      date: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...(key.milestoneId ? { milestoneId: key.milestoneId } : {}),
+      ...(key.flashcardId ? { flashcardId: key.flashcardId } : {}),
+    } as Progress;
+    if (status === ProgressStatus.IN_PROGRESS) base.startedAt = new Date().toISOString();
+    progresses.push(base);
+  }
+}
+
 function updateAchievedMilestonesFromProgress() {
   const progresses = userStore.selectedBaby?.progresses;
   if (userStore.isLoggedIn && progresses) {
     achievedMilestones.value = progresses
-      .filter((p) => p.status === ProgressStatus.COMPLETED)
-      .map((p) => String(p.milestoneId ?? p.flashcardId));
+      .filter((p) => p.status === ProgressStatus.COMPLETED && p.milestoneId)
+      .map((p) => String(p.milestoneId));
   }
 }
 
-// 獲取達成日期（以 milestoneId 為主）
-function getAchievementDate(milestoneId: string): string | null {
-  const progresses = userStore.selectedBaby?.progresses;
-  if (!progresses) return null;
-  const progress = progresses.find(
-    (p) => (String(p.milestoneId) === milestoneId || String(p.flashcardId) === milestoneId) && p.status === ProgressStatus.COMPLETED,
-  );
-  return progress ? progress.date : null;
-}
-
-// 開啟狀態選擇彈窗（傳入 milestoneId）
 function openStatusDialog(milestoneId: string) {
   statusDialog.value = { open: true, milestoneId };
 }
 
-// 選擇狀態
 async function selectStatus(status: ProgressStatus) {
   const id = statusDialog.value.milestoneId;
   if (!id) return;
@@ -407,7 +406,6 @@ async function selectStatus(status: ProgressStatus) {
   statusDialog.value.open = false;
 }
 
-// 卡片依狀態設置樣式 class
 function statusClass(milestoneId: string) {
   const s = getMilestoneStatus(milestoneId);
   return {
@@ -417,24 +415,17 @@ function statusClass(milestoneId: string) {
   };
 }
 
-// 監聽選定寶寶的變化
 watch(
   () => userStore.selectedBaby,
-  () => {
-    updateAchievedMilestonesFromProgress();
-  },
+  () => { updateAchievedMilestonesFromProgress(); },
   { deep: true },
 );
 
-// 監聽篩選條件變化，重新獲取數據
 watch(
   [selectedAgeId, activeCategoryId],
-  async () => {
-    await fetchMilestones();
-  }
+  async () => { await fetchMilestones(); }
 );
 
-// 由於 API 已經根據參數進行篩選，直接使用 milestones 數據並排序
 const filteredMilestonesByCategory = computed((): Milestone[] => {
   return [...milestones.value].sort((a, b) => {
     const aAchieved = isAchieved(a.id);
@@ -445,171 +436,54 @@ const filteredMilestonesByCategory = computed((): Milestone[] => {
   });
 });
 
-function flipCard(id: string): void {
-  if (isCardFlipped(id)) {
-    flippedCards.value = flippedCards.value.filter((cardId) => cardId !== id);
-  } else {
-    flippedCards.value.push(id);
-  }
-}
-
-function isCardFlipped(id: string): boolean {
-  return flippedCards.value.includes(id);
-}
-
-// 年齡導航邏輯
+// 年齡導航
 const currentAgeIndex = ref<number | null>(null);
+const canGoToPreviousAge = computed(() => currentAgeIndex.value !== null && currentAgeIndex.value > 0);
+const canGoToNextAge = computed(() => currentAgeIndex.value !== null && currentAgeIndex.value < ageOptions.value.length - 1);
+function goToPreviousAge() { if (canGoToPreviousAge.value) { currentAgeIndex.value!--; updateSelectedAge(); } }
+function goToNextAge() { if (canGoToNextAge.value) { currentAgeIndex.value!++; updateSelectedAge(); } }
+function updateSelectedAge() { const idx = currentAgeIndex.value; if (idx !== null && idx >= 0 && idx < ageOptions.value.length) { const ageOption = ageOptions.value[idx]; if (ageOption) selectedAgeId.value = ageOption.value; } }
+watch(selectedAgeId, (newVal) => { const index = ageOptions.value.findIndex((option) => option.value === newVal); currentAgeIndex.value = index !== -1 ? index : 0; });
+watch(ageOptions, () => { if (ageOptions.value.length > 0) { const index = ageOptions.value.findIndex((o) => o.value === selectedAgeId.value); currentAgeIndex.value = index !== -1 ? index : 0; } }, { immediate: true });
 
-// 計算屬性：判斷是否可以導航到上一個或下一個年齡層
-const canGoToPreviousAge = computed(() => {
-  if (currentAgeIndex.value === null) return false;
-  return currentAgeIndex.value > 0;
-});
+function resetFilters() { selectedAgeId.value = null; activeCategoryId.value = null; }
+function isValidId(val: unknown): val is string { return typeof val === 'string' && val.trim() !== '' && val !== 'null' && val !== 'undefined'; }
+function onCategoryTabChange(val: string | number | undefined) { activeCategoryId.value = (val === 'ALL' || val === undefined || val === '') ? null : String(val); }
+function isAchieved(id: string): boolean { return getMilestoneStatus(id) === ProgressStatus.COMPLETED; }
 
-const canGoToNextAge = computed(() => {
-  if (currentAgeIndex.value === null) return false;
-  return currentAgeIndex.value < ageOptions.value.length - 1;
-});
-
-// 方法：導航到上一個年齡層
-function goToPreviousAge() {
-  if (canGoToPreviousAge.value) {
-    currentAgeIndex.value!--;
-    updateSelectedAge();
-  }
-}
-
-// 方法：導航到下一個年齡層
-function goToNextAge() {
-  if (canGoToNextAge.value) {
-    currentAgeIndex.value!++;
-    updateSelectedAge();
-  }
-}
-
-// 方法：根據當前索引更新選定的年齡
-function updateSelectedAge() {
-  const idx = currentAgeIndex.value;
-  if (idx !== null && idx >= 0 && idx < ageOptions.value.length) {
-    const ageOption = ageOptions.value[idx];
-    if (ageOption) {
-      selectedAgeId.value = ageOption.value;
-    }
-  }
-}
-
-// 監聽年齡選擇變化，更新當前年齡索引
-watch(
-  selectedAgeId,
-  (newVal) => {
-    const index = ageOptions.value.findIndex((option) => option.value === newVal);
-    currentAgeIndex.value = index !== -1 ? index : 0; // 修正：如果找不到索引，設為 0（全部）
-  },
-);
-
-// 修正：更安全的初始化邏輯
-watch(
-  ageOptions,
-  () => {
-    // 當年齡選項載入完成後，重新設置當前索引
-    if (ageOptions.value.length > 0) {
-      const index = ageOptions.value.findIndex((option) => option.value === selectedAgeId.value);
-      currentAgeIndex.value = index !== -1 ? index : 0;
-    }
-  },
-  { immediate: true }
-);
-
-// 方法：重設篩選條件
-function resetFilters() {
-  selectedAgeId.value = null;
-  activeCategoryId.value = null; // 重設為「全部」
-}
-
-// 格式化日期字串
-function formatDate(dateString: string | null): string {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('zh-TW');
-}
-
-// 工具：檢查是否為有效的 ID（非空字串，且不為 'null' 或 'undefined'）
-function isValidId(val: unknown): val is string {
-  return typeof val === 'string' && val.trim() !== '' && val !== 'null' && val !== 'undefined';
-}
-
-// 分類 tab 切換時，將「全部」標準化為 null
-function onCategoryTabChange(val: string | number | undefined) {
-  if (val === 'ALL' || val === undefined || val === '') {
-    activeCategoryId.value = null;
-  } else {
-    activeCategoryId.value = String(val);
-  }
-}
-
-// 判斷是否已達成
-function isAchieved(id: string): boolean {
-  return getMilestoneStatus(id) === ProgressStatus.COMPLETED;
-}
-
-// 依篩選條件抓取里程碑
 async function fetchMilestones() {
   try {
     isFetching.value = true;
-
     const params = new URLSearchParams();
     if (isValidId(selectedAgeId.value)) params.append('ageId', selectedAgeId.value);
     if (isValidId(activeCategoryId.value)) params.append('categoryId', activeCategoryId.value);
-
     const url = `${apiConfig.baseUrl}${apiConfig.endpoints.milestones}${params.toString() ? '?' + params.toString() : ''}`;
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
-    });
-
+    const response = await fetch(url, { method: 'GET', headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' } });
     if (!response.ok) {
       Notify.create({ type: 'negative', message: `載入里程碑失敗（${response.status}）`, position: 'top' });
       milestones.value = [];
       return;
     }
-
     milestones.value = (await response.json()) as Milestone[];
     updateAchievedMilestonesFromProgress();
   } catch (err) {
     console.error('Error fetching milestone data:', err);
     Notify.create({ type: 'negative', message: '載入里程碑資料時發生錯誤', position: 'top' });
-  } finally {
-    isFetching.value = false;
-  }
+  } finally { isFetching.value = false; }
 }
 
-// 取年齡選項
 async function fetchAgeOptions() {
   try {
-    const res = await apiClient.get(apiConfig.endpoints.ageOptions, {
-      headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
-    });
+    const res = await apiClient.get(apiConfig.endpoints.ageOptions, { headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' } });
     const list = Array.isArray(res.data) ? res.data : [];
-
-    const normalized: AgeOption[] = list
-      .filter(isApiAgeOption)
-      .map((o) => {
-        const base: AgeOption = { label: o.label, value: String(o.value) };
-        const m = typeof o.month === 'number' ? o.month : parseMonthFromLabel(o.label);
-        const sm = typeof o.startMonth === 'number' ? o.startMonth : undefined;
-        const em = typeof o.endMonth === 'number' ? o.endMonth : undefined;
-        return {
-          ...base,
-          ...(typeof m === 'number' ? { month: m } : {}),
-          ...(typeof sm === 'number' ? { startMonth: sm } : {}),
-          ...(typeof em === 'number' ? { endMonth: em } : {}),
-        } as AgeOption;
-      });
-
+    const normalized: AgeOption[] = list.filter(isApiAgeOption).map((o) => {
+      const base: AgeOption = { label: o.label, value: String(o.value) };
+      const m = typeof o.month === 'number' ? o.month : parseMonthFromLabel(o.label);
+      const sm = typeof o.startMonth === 'number' ? o.startMonth : undefined;
+      const em = typeof o.endMonth === 'number' ? o.endMonth : undefined;
+      return { ...base, ...(typeof m === 'number' ? { month: m } : {}), ...(typeof sm === 'number' ? { startMonth: sm } : {}), ...(typeof em === 'number' ? { endMonth: em } : {}) } as AgeOption;
+    });
     ageOptions.value = [{ label: '全部', value: null }, ...normalized];
-
-    // 取得選項後，嘗試自動帶入
     if (!hasAutoSelectedAge.value) autoSelectAgeByBaby();
   } catch (e) {
     console.error('取得年齡選項失敗', e);
@@ -617,123 +491,42 @@ async function fetchAgeOptions() {
   }
 }
 
-// 取分類選項
 async function fetchCategoryOptions() {
   try {
-    const res = await apiClient.get(apiConfig.endpoints.categoryOptions, {
-      headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' },
-    });
+    const res = await apiClient.get(apiConfig.endpoints.categoryOptions, { headers: { Accept: 'application/json', 'Accept-Language': 'zh_TW' } });
     const list = Array.isArray(res.data) ? res.data : [];
-    const normalized: CategoryOption[] = list
-      .filter((o) => o && typeof o.label === 'string' && typeof o.value === 'string')
-      .map((o) => ({ label: o.label, value: o.value }));
-
+    const normalized: CategoryOption[] = list.filter((o) => o && typeof o.label === 'string' && typeof o.value === 'string').map((o) => ({ label: o.label, value: o.value }));
     categoryOptions.value = [{ label: '全部', value: null }, ...normalized];
     if (!activeCategoryId.value) activeCategoryId.value = null;
   } catch (e) {
     console.error('取得分類選項失敗', e);
-    categoryOptions.value = [
-      { label: '全部', value: null },
-      { label: '動作發展', value: 'fallback-motion' },
-      { label: '認知發展', value: 'fallback-cognitive' },
-      { label: '語言溝通', value: 'fallback-language' },
-      { label: '社會與情感', value: 'fallback-social' },
-    ];
+    categoryOptions.value = [ { label: '全部', value: null } ];
     if (!activeCategoryId.value) activeCategoryId.value = null;
   }
 }
 
-// 監聽選定寶寶，切換時重新同步後端進度
-watch(
-  () => userStore.selectedBaby?.id,
-  async (id) => {
-    if (id) await fetchAndSyncBabyProgresses();
-  },
-  { immediate: true }
-);
+// 自動選齡
+watch(() => userStore.selectedBaby?.id, async (id) => { if (id) await fetchAndSyncBabyProgresses(); }, { immediate: true });
+function computeBabyMonths(birthDateStr?: string | null): number | null { if (!birthDateStr) return null; const birthDate = new Date(birthDateStr); if (isNaN(birthDate.getTime())) return null; const today = new Date(); let months = (today.getFullYear() - birthDate.getFullYear()) * 12; months += today.getMonth() - birthDate.getMonth(); if (today.getDate() < birthDate.getDate()) months--; return Math.max(0, months); }
+function parseMonthFromLabel(label?: string): number | undefined { if (!label) return undefined; const match = label.match(/\d+/); return match ? parseInt(match[0], 10) : undefined; }
+function getBestAgeOptionForMonths(months: number): AgeOption | undefined { const opts = ageOptions.value.filter((o) => o.value !== null); if (opts.length === 0) return undefined; type AgeOptionWithMaybeM = AgeOption & { _m?: number }; const withMonth: AgeOptionWithMaybeM[] = opts.map((o) => { const m = o.month ?? o.startMonth ?? parseMonthFromLabel(o.label); return m !== undefined ? { ...o, _m: m } : { ...o }; }); const normalized = withMonth.filter((o): o is AgeOption & { _m: number } => typeof o._m === 'number'); if (normalized.length === 0) return undefined; const notGreater = normalized.filter((o) => o._m <= months).sort((a, b) => b._m - a._m); if (notGreater.length > 0) return notGreater[0]; const greater = normalized.filter((o) => o._m > months).sort((a, b) => a._m - b._m); return greater[0]; }
+function autoSelectAgeByBaby() { if (hasAutoSelectedAge.value) return; if (!userStore.isLoggedIn) return; const birth = userStore.selectedBaby?.birthDate; const months = computeBabyMonths(birth); if (months === null) return; const best = getBestAgeOptionForMonths(months); if (best && best.value !== null) { selectedAgeId.value = best.value; hasAutoSelectedAge.value = true; } }
+watch([ageOptions, () => userStore.selectedBaby?.birthDate], () => { if (!hasAutoSelectedAge.value && ageOptions.value.length > 1) { autoSelectAgeByBaby(); } }, { deep: true, immediate: true });
+watch(() => userStore.selectedBaby?.id, () => { hasAutoSelectedAge.value = false; if (selectedAgeId.value === null) autoSelectAgeByBaby(); });
 
-// ============ 新增：依寶寶月齡自動選齡邏輯 ============
-function computeBabyMonths(birthDateStr?: string | null): number | null {
-  if (!birthDateStr) return null;
-  const birthDate = new Date(birthDateStr);
-  if (isNaN(birthDate.getTime())) return null;
-  const today = new Date();
-  let months = (today.getFullYear() - birthDate.getFullYear()) * 12;
-  months += today.getMonth() - birthDate.getMonth();
-  if (today.getDate() < birthDate.getDate()) months--;
-  return Math.max(0, months);
-}
+// 里程碑詳細彈窗控制
+function openMilestoneDetail(m: Milestone) { milestoneDetailDialog.value = { open: true, milestone: m }; }
+function closeMilestoneDetail() { milestoneDetailDialog.value.open = false; milestoneDetailDialog.value.milestone = null; }
 
-function parseMonthFromLabel(label?: string): number | undefined {
-  if (!label) return undefined;
-  // 取第一個數字作為起始月齡，例如「6 個月」、「6-9 個月」-> 6
-  const match = label.match(/\d+/);
-  return match ? parseInt(match[0], 10) : undefined;
-}
+// Flashcards 相關計算
+const flashcardsOfCurrentMilestone = computed<MilestoneFlashcard[]>(() => milestoneDetailDialog.value.milestone?.flashcards || []);
+const flashcardsCompleted = computed(() => flashcardsOfCurrentMilestone.value.filter(fc => getFlashcardStatus(fc.id) === ProgressStatus.COMPLETED).length);
+const flashcardCompletionRatio = computed(() => flashcardsOfCurrentMilestone.value.length === 0 ? 0 : flashcardsCompleted.value / flashcardsOfCurrentMilestone.value.length);
+function flashcardStatusIcon(status: ProgressStatus) { switch (status) { case ProgressStatus.COMPLETED: return 'check_circle'; case ProgressStatus.IN_PROGRESS: return 'play_circle'; default: return 'radio_button_unchecked'; } }
+function flashcardStatusColor(status: ProgressStatus) { switch (status) { case ProgressStatus.COMPLETED: return 'positive'; case ProgressStatus.IN_PROGRESS: return 'warning'; default: return 'grey'; } }
+async function cycleFlashcardStatus(flashcardId: string) { const current = getFlashcardStatus(flashcardId); let next: ProgressStatus; if (current === ProgressStatus.NOT_STARTED) next = ProgressStatus.IN_PROGRESS; else if (current === ProgressStatus.IN_PROGRESS) next = ProgressStatus.COMPLETED; else next = ProgressStatus.NOT_STARTED; await updateFlashcardStatus(flashcardId, next); }
 
-function getBestAgeOptionForMonths(months: number): AgeOption | undefined {
-  const opts = ageOptions.value.filter((o) => o.value !== null);
-  if (opts.length === 0) return undefined;
-
-  type AgeOptionWithMaybeM = AgeOption & { _m?: number };
-  const withMonth: AgeOptionWithMaybeM[] = opts.map((o) => {
-    const m = o.month ?? o.startMonth ?? parseMonthFromLabel(o.label);
-    return m !== undefined ? { ...o, _m: m } : { ...o };
-  });
-
-  const normalized = withMonth.filter((o): o is AgeOption & { _m: number } => typeof o._m === 'number');
-  if (normalized.length === 0) return undefined;
-
-  const notGreater = normalized.filter((o) => o._m <= months).sort((a, b) => b._m - a._m);
-  if (notGreater.length > 0) return notGreater[0];
-
-  const greater = normalized.filter((o) => o._m > months).sort((a, b) => a._m - b._m);
-  return greater[0];
-}
-
-function autoSelectAgeByBaby() {
-  if (hasAutoSelectedAge.value) return;
-  if (!userStore.isLoggedIn) return;
-  const birth = userStore.selectedBaby?.birthDate; // 去除不必要的型別斷言
-  const months = computeBabyMonths(birth);
-  if (months === null) return;
-  const best = getBestAgeOptionForMonths(months);
-  if (best && best.value !== null) {
-    selectedAgeId.value = best.value;
-    hasAutoSelectedAge.value = true; // 僅自動一次，避免覆蓋使用者手動選擇
-  }
-}
-
-// 監聽：當年齡選項載入完成或寶寶切換時嘗試自動帶入
-watch(
-  [ageOptions, () => userStore.selectedBaby?.birthDate],
-  () => {
-    if (!hasAutoSelectedAge.value && ageOptions.value.length > 1) {
-      autoSelectAgeByBaby();
-    }
-  },
-  { deep: true, immediate: true }
-);
-
-// 若使用者切換寶寶，允許重新自動帶入
-watch(
-  () => userStore.selectedBaby?.id,
-  () => {
-    hasAutoSelectedAge.value = false;
-    // 當切換寶寶時，若仍在「全部」，可立即嘗試自動帶入
-    if (selectedAgeId.value === null) autoSelectAgeByBaby();
-  }
-);
-// ============ 原有邏輯與方法 ============
-
-// 掛載時初始化
-onMounted(async () => {
-  await fetchAgeOptions();
-  await fetchCategoryOptions();
-  await fetchMilestones();
-  // 補：初始化也同步進度
-  await fetchAndSyncBabyProgresses();
-});
+onMounted(async () => { await fetchAgeOptions(); await fetchCategoryOptions(); await fetchMilestones(); await fetchAndSyncBabyProgresses(); });
 </script>
 
 <style lang="scss">
@@ -897,6 +690,34 @@ body.body--dark {
 // 狀態 pill
 .status-pill {
   border: 1px solid rgba(0,0,0,0.06);
+}
+
+// 新增樣式：簡化的里程碑列表項目
+.milestone-simple-item {
+  transition: background-color .15s;
+
+  &:hover {
+    background: rgba(0,0,0,0.03);
+  }
+}
+
+// 狀態樣式
+.status-not-started { }
+.status-in-progress { border-left: 4px solid #ffa726; }
+.status-completed { border-left: 4px solid #66bb6a; }
+
+// 影片容器樣式
+.video-wrapper {
+  background:#000;
+  border-radius:8px;
+  overflow:hidden;
+}
+
+// Flashcard 項目樣式
+.flashcard-item {
+  .q-item__label + .q-item__label {
+    margin-top:2px;
+  }
 }
 </style>
 
