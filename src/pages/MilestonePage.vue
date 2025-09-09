@@ -125,23 +125,29 @@
                 <div class="text-h6 q-mb-sm">相關 FlashCards</div>
                 <div v-if="flashcardsOfCurrentMilestone.length === 0" class="text-grey">無相關 FlashCards</div>
                 <div v-else>
-                  <div class="row items-center q-mb-sm">
-                    <q-linear-progress :value="flashcardCompletionRatio" color="positive" track-color="grey-3" style="width:180px" />
-                    <span class="text-caption q-ml-sm">{{ flashcardsCompleted }}/{{ flashcardsOfCurrentMilestone.length }} 已完成</span>
-                  </div>
                   <q-list separator bordered class="rounded-borders">
-                    <q-item v-for="fc in flashcardsOfCurrentMilestone" :key="fc.id" class="flashcard-item">
-                      <q-item-section avatar>
-                        <q-avatar size="42px" square><q-img :src="fc.imageUrl" ratio="1" fit="cover" /></q-avatar>
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label>{{ fc.subject }}</q-item-label>
-                        <q-item-label caption>{{ fc.description }}</q-item-label>
-                      </q-item-section>
-                      <q-item-section side top>
-                        <q-btn v-if="userStore.isLoggedIn" size="sm" flat round :icon="flashcardStatusIcon(getFlashcardStatus(fc.id))" :color="flashcardStatusColor(getFlashcardStatus(fc.id))" @click.stop="cycleFlashcardStatus(fc.id)" />
-                      </q-item-section>
-                    </q-item>
+                    <q-expansion-item
+                      v-for="fc in flashcardsOfCurrentMilestone"
+                      :key="fc.id"
+                      :label="fc.subject"
+                      :expand-separator="true"
+                      :expanded="expandedFlashcardId === fc.id"
+                      @update:expanded="(val: boolean) => { expandedFlashcardId = val ? fc.id : null }"
+                      switch-toggle-side
+                    >
+                      <div class="row items-center q-col-gutter-md q-mb-md">
+                        <div class="col-auto">
+                          <q-img :src="fc.imageUrl" style="width:80px;height:80px;object-fit:cover;border-radius:8px;" />
+                        </div>
+                        <div class="col">
+                          <div class="text-subtitle2">{{ fc.category.name }}</div>
+                          <div class="text-body1 q-mt-xs">{{ fc.description }}</div>
+                        </div>
+                        <div class="col-auto">
+                          <q-btn v-if="userStore.isLoggedIn" size="sm" flat round :icon="flashcardStatusIcon(getFlashcardStatus(fc.id))" :color="flashcardStatusColor(getFlashcardStatus(fc.id))" @click.stop="cycleFlashcardStatus(fc.id)" />
+                        </div>
+                      </div>
+                    </q-expansion-item>
                   </q-list>
                 </div>
               </div>
@@ -193,6 +199,7 @@ const isLoading = ref(false);
 const isFetching = ref(false);
 const statusDialog = ref<{ open: boolean; milestoneId: string | null }>({ open: false, milestoneId: null });
 const milestoneDetailDialog = ref<{ open: boolean; milestone: Milestone | null }>({ open: false, milestone: null });
+const expandedFlashcardId = ref<string | null>(null);
 
 function mapProgressResponseToStoreProgress(resp: { id: string; babyId: string; flashcardId?: string | null; milestoneId?: string | null; progressStatus: string; dateAchieved?: string | null; dateStarted?: string | null; }): Progress {
   const status = (resp.progressStatus as keyof typeof ProgressStatus) in ProgressStatus
@@ -334,7 +341,7 @@ function getBestAgeOptionForMonths(months: number): AgeOption | undefined {
   const opts = ageOptions.value.filter((o) => o.value !== null);
   const withM = opts
     .map((o) => ({ o, m: o.month ?? o.startMonth ?? parseMonthFromLabel(o.label) }))
-    .filter((r): r is { o: AgeOption; m: number } => typeof r.m === 'number');
+    .filter((r): r is { o: AgeOption; m: number } => false);
   const notGreater = withM.filter((r) => r.m <= months).sort((a, b) => b.m - a.m);
   if (notGreater.length > 0) return notGreater[0]?.o;
   const greater = withM.filter((r) => r.m > months).sort((a, b) => a.m - b.m);
@@ -350,8 +357,6 @@ function closeMilestoneDetail() { milestoneDetailDialog.value.open = false; mile
 const currentMilestoneTitle = computed(() => milestoneDetailDialog.value.milestone?.subject || milestoneDetailDialog.value.milestone?.description || '里程碑');
 
 const flashcardsOfCurrentMilestone = computed<MilestoneFlashcard[]>(() => milestoneDetailDialog.value.milestone?.flashcards || []);
-const flashcardsCompleted = computed(() => flashcardsOfCurrentMilestone.value.filter(fc => getFlashcardStatus(fc.id) === ProgressStatus.COMPLETED).length);
-const flashcardCompletionRatio = computed(() => flashcardsOfCurrentMilestone.value.length === 0 ? 0 : flashcardsCompleted.value / flashcardsOfCurrentMilestone.value.length);
 function flashcardStatusIcon(status: ProgressStatus) { switch (status) { case ProgressStatus.COMPLETED: return 'check_circle'; case ProgressStatus.IN_PROGRESS: return 'play_circle'; default: return 'radio_button_unchecked'; } }
 function flashcardStatusColor(status: ProgressStatus) { switch (status) { case ProgressStatus.COMPLETED: return 'positive'; case ProgressStatus.IN_PROGRESS: return 'warning'; default: return 'grey'; } }
 async function cycleFlashcardStatus(flashcardId: string) { if (!userStore.isLoggedIn) return; const current = getFlashcardStatus(flashcardId); let next: ProgressStatus = ProgressStatus.NOT_STARTED; if (current === ProgressStatus.NOT_STARTED) next = ProgressStatus.IN_PROGRESS; else if (current === ProgressStatus.IN_PROGRESS) next = ProgressStatus.COMPLETED; await updateFlashcardStatus(flashcardId, next); }
