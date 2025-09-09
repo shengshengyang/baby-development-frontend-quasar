@@ -149,8 +149,16 @@
           </div>
         </q-scroll-area>
         <q-separator />
-        <q-card-actions align="right" class="bg-grey-2">
-          <q-btn flat color="primary" label="關閉" @click="closeMilestoneDetail" />
+        <q-card-actions class="bg-grey-2 milestone-detail-footer p-0" style="padding:0;">
+          <q-btn
+            flat
+            color="primary"
+            label="關閉"
+            @click="closeMilestoneDetail"
+            block
+            class="milestone-footer-btn"
+            style="width:100%;height:56px;font-size:1.1rem;padding:0;"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
