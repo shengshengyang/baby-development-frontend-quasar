@@ -21,6 +21,7 @@
           class="age-nav-btn"
         />
         <q-select
+          name="ageFilter"
           v-model="selectedAgeId"
           :options="ageOptions"
           label="年齡篩選"
@@ -192,67 +193,13 @@ import {
 } from 'src/api/services/progressService';
 import type { Progress } from 'src/components/models';
 import StatusIcon from 'src/components/StatusIcon.vue';
-
-// 1. 定義介面
-interface Milestone {
-  id: string;
-  age: {
-    id: string;
-    month: number;
-    displayName: string;
-    displayNameObject: {
-      en: string;
-      tw: string;
-      ja: string;
-      cn: string;
-      vi: string;
-      ko: string;
-    };
-  };
-  category: {
-    id: string;
-    name: string;
-    nameObject: {
-      en: string;
-      tw: string;
-      ja: string;
-      cn: string;
-      vi: string;
-      ko: string;
-    };
-  };
-  description: string;
-  descriptionObject: unknown;
-  videoUrl: string | null;
-  imageBase64: string | null;
-}
-
-interface AgeOption {
-  label: string;
-  value: string | null; // 從後端取得的 id；全部用 null
-  month?: number; // 新增：此選項代表的開始月齡（盡量填）
-  startMonth?: number; // 兼容可能的欄位
-  endMonth?: number;   // 兼容可能的欄位
-}
-
-// 新增：後端回傳的年齡選項型別（用於映射，避免 any）
-interface ApiAgeOption {
-  label: string;
-  value: string | number;
-  month?: number;
-  startMonth?: number;
-  endMonth?: number;
-}
-
-function isApiAgeOption(o: unknown): o is ApiAgeOption {
-  if (typeof o !== 'object' || o === null) return false;
-  return 'label' in o && 'value' in o;
-}
-
-interface CategoryOption {
-  label: string;
-  value: string | null; // 從後端取得的分類 id；全部用 null
-}
+// 新增：集中型別匯入
+import type {
+  Milestone,
+  AgeOption,
+  CategoryOption,
+} from 'src/types/milestone';
+import { isApiAgeOption } from 'src/types/milestone';
 
 // 2. 響應式資料
 const milestones = ref<Milestone[]>([]);
@@ -728,22 +675,19 @@ function getBestAgeOptionForMonths(months: number): AgeOption | undefined {
   const opts = ageOptions.value.filter((o) => o.value !== null);
   if (opts.length === 0) return undefined;
 
-  // 正規化：優先使用 month/startMonth，退化解析 label
   type AgeOptionWithMaybeM = AgeOption & { _m?: number };
-  const withMonth = opts
-    .map((o): AgeOptionWithMaybeM => {
-      const m = o.month ?? o.startMonth ?? parseMonthFromLabel(o.label);
-      return typeof m === 'number' ? { ...o, _m: m } : { ...o };
-    })
-    .filter((o): o is AgeOption & { _m: number } => typeof (o as { _m?: number })._m === 'number');
+  const withMonth: AgeOptionWithMaybeM[] = opts.map((o) => {
+    const m = o.month ?? o.startMonth ?? parseMonthFromLabel(o.label);
+    return m !== undefined ? { ...o, _m: m } : { ...o };
+  });
 
-  if (withMonth.length === 0) return undefined;
+  const normalized = withMonth.filter((o): o is AgeOption & { _m: number } => typeof o._m === 'number');
+  if (normalized.length === 0) return undefined;
 
-  // 先找不大於 months 的最大值；否則取最接近的最小值
-  const notGreater = withMonth.filter((o) => o._m <= months).sort((a, b) => b._m - a._m);
+  const notGreater = normalized.filter((o) => o._m <= months).sort((a, b) => b._m - a._m);
   if (notGreater.length > 0) return notGreater[0];
 
-  const greater = withMonth.filter((o) => o._m > months).sort((a, b) => a._m - b._m);
+  const greater = normalized.filter((o) => o._m > months).sort((a, b) => a._m - b._m);
   return greater[0];
 }
 

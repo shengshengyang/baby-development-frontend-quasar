@@ -2,7 +2,7 @@
 import apiClient from '../apiClient';
 import { apiConfig } from '../config';
 
-export interface Milestone {
+export interface ApiMilestoneRecord {
   id: number;
   category: string;
   milestoneId: number;
@@ -17,9 +17,9 @@ export const milestoneService = {
   /**
    * 獲取所有里程碑資料
    * @param language 語言代碼，預設為 zh_TW
-   * @returns Promise<Milestone[]>
+   * @returns Promise<ApiMilestoneRecord[]>
    */
-  async getMilestones(language = 'zh_TW'): Promise<Milestone[]> {
+  async getMilestones(language = 'zh_TW'): Promise<ApiMilestoneRecord[]> {
     try {
       const response = await apiClient.get(apiConfig.endpoints.milestones, {
         headers: {
