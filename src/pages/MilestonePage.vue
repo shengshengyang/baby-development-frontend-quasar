@@ -135,6 +135,16 @@
                       @update:expanded="(val: boolean) => { expandedFlashcardId = val ? fc.id : null }"
                       switch-toggle-side
                     >
+                      <template #header>
+                        <div class="row items-center no-wrap q-gutter-md" style="width:100%;">
+                          <div style="flex:1 1 auto;min-width:0;">
+                            <span class="ellipsis-2-lines">{{ fc.subject }}</span>
+                          </div>
+                          <div style="flex:0 0 auto;">
+                            <q-btn v-if="userStore.isLoggedIn" size="sm" flat round :icon="flashcardStatusIcon(getFlashcardStatus(fc.id))" :color="flashcardStatusColor(getFlashcardStatus(fc.id))" @click.stop="cycleFlashcardStatus(fc.id)" />
+                          </div>
+                        </div>
+                      </template>
                       <div class="row items-center q-col-gutter-md q-mb-md">
                         <div class="col-auto">
                           <q-img :src="fc.imageUrl" style="width:80px;height:80px;object-fit:cover;border-radius:8px;" />
@@ -142,9 +152,6 @@
                         <div class="col">
                           <div class="text-subtitle2">{{ fc.category.name }}</div>
                           <div class="text-body1 q-mt-xs">{{ fc.description }}</div>
-                        </div>
-                        <div class="col-auto">
-                          <q-btn v-if="userStore.isLoggedIn" size="sm" flat round :icon="flashcardStatusIcon(getFlashcardStatus(fc.id))" :color="flashcardStatusColor(getFlashcardStatus(fc.id))" @click.stop="cycleFlashcardStatus(fc.id)" />
                         </div>
                       </div>
                     </q-expansion-item>
