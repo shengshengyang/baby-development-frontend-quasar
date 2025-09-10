@@ -136,7 +136,7 @@
                     <span class="text-caption q-ml-xs">已完成</span>
                   </div>
                   <div class="col">
-                    <span class="text-caption text-grey-7">（可點擊 FlashCard 狀態按鈕切換：未開始 → 已開始 → 已完成）</span>
+                    <span class="text-caption text-grey-7">（登入可點擊狀態按鈕切換）</span>
                   </div>
                 </div>
                 <div v-if="flashcardsOfCurrentMilestone.length === 0" class="text-grey">無相關 FlashCards</div>
@@ -169,7 +169,6 @@
                         <div class="col">
                           <div class="text-subtitle2">{{ fc.category.name }}</div>
                           <div class="text-body1 q-mt-xs">{{ fc.description }}</div>
-                          <div class="text-caption text-grey-6 q-mt-sm">狀態按鈕可點擊切換：未開始 → 已開始 → 已完成</div>
                         </div>
                       </div>
                     </q-expansion-item>
