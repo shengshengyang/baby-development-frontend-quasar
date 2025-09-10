@@ -1,3 +1,5 @@
+@use 'sass:color';
+
 .vaccine-page {
   max-width: 900px;
   margin: 0 auto;
@@ -100,7 +102,7 @@
 // 暗黑模式樣式
 .body--dark {
   .calendar-group .age-title {
-    background-color: darken($primary, 10%);
+    background-color: color.adjust($primary, $lightness: -10%);
   }
 
   .list-view .q-item {
@@ -109,7 +111,7 @@
   }
 
   .vaccine-name {
-    color: lighten($primary, 10%);
+    color: color.adjust($primary, $lightness: 10%);
   }
 
   .vaccine-group {

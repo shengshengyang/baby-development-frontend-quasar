@@ -1,55 +1,47 @@
-/* eslint-disable @typescript-eslint/no-explicit-any,@typescript-eslint/no-unnecessary-type-assertion */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/// <reference lib="webworker" />
 /*
- * This file (which will be your service worker)
- * is picked up by the build system ONLY if
- * quasar.config file > pwa > workboxMode is set to "InjectManifest"
+ * Service Worker (InjectManifest)
  */
 
-// 本地最小 Web Worker 事件型別（避免在非 WebWorker lib 環境下 TS 編譯錯誤）
-interface ExtendableEvent extends Event { waitUntil(promise: Promise<any>): void }
-interface FetchEvent extends ExtendableEvent { request: Request; respondWith(p: Promise<Response>): void }
-interface ExtendableMessageEvent extends ExtendableEvent { data: any }
+export {};
 
 import { clientsClaim } from 'workbox-core';
-import {
-  precacheAndRoute,
-  cleanupOutdatedCaches,
-  createHandlerBoundToURL,
-} from 'workbox-precaching';
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
 import { StaleWhileRevalidate, CacheFirst, NetworkFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
+import type { WorkboxPlugin } from 'workbox-core';
 
-// 型別宣告 (保持於頂部避免編譯錯誤)
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-declare const self: ServiceWorkerGlobalScope & typeof globalThis & { skipWaiting: () => void };
+// 宣告 self 以包含 Workbox 注入資源
+declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: any };
+// 補 ExtendableMessageEvent (部分 TS 版本缺)
+interface ExtendableMessageEvent extends ExtendableEvent { data: any }
 
 void self.skipWaiting();
 clientsClaim();
 
-const fallbackUrl = (process.env.PWA_FALLBACK_HTML as string) || '/index.html';
+const fallbackUrl = process.env.PWA_FALLBACK_HTML || '/index.html';
 
-self.addEventListener('install', (event: Event) => {
-  (event as ExtendableEvent).waitUntil(
+self.addEventListener('install', (event: ExtendableEvent) => {
+  event.waitUntil(
     (async () => {
       try {
         const cache = await caches.open('offline-fallback');
         await cache.add('/offline.html');
       } catch {
-        // 忽略錯誤，避免 install 失敗
+        /* 忽略 */
       }
     })()
   );
 });
 
-// Use with precache injection
+// Precache
 precacheAndRoute(self.__WB_MANIFEST);
-
 cleanupOutdatedCaches();
 
-// Navigation fallback：非 SSR 使用 index.html；若日後加入 offline.html 可調整
+// Navigation fallback
 if (process.env.MODE !== 'ssr' || process.env.PROD) {
   registerRoute(
     new NavigationRoute(
@@ -59,63 +51,61 @@ if (process.env.MODE !== 'ssr' || process.env.PROD) {
   );
 }
 
-// --- Runtime Caching 規則 ---
-// 1. API (GET) 資料：快速回應 + 背景更新
+// API 快取
 registerRoute(
   ({ url, request }) => request.method === 'GET' && url.pathname.startsWith('/api/'),
   new StaleWhileRevalidate({
     cacheName: 'api-cache',
     plugins: [
-      new ExpirationPlugin({ maxEntries: 80, maxAgeSeconds: 60 * 60 }) as any,
-      new CacheableResponsePlugin({ statuses: [0, 200] }) as any,
+      (new ExpirationPlugin({ maxEntries: 80, maxAgeSeconds: 60 * 60 }) as unknown as WorkboxPlugin),
+      (new CacheableResponsePlugin({ statuses: [0, 200] }) as unknown as WorkboxPlugin),
     ],
   })
 );
 
-// 2. 圖片：優先用快取，過期清理
+// 圖片
 registerRoute(
   ({ request }) => request.destination === 'image',
   new CacheFirst({
     cacheName: 'image-cache',
     plugins: [
-      new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: 7 * 24 * 60 * 60 }) as any,
-      new CacheableResponsePlugin({ statuses: [0, 200] }) as any,
+      (new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: 7 * 24 * 60 * 60 }) as unknown as WorkboxPlugin),
+      (new CacheableResponsePlugin({ statuses: [0, 200] }) as unknown as WorkboxPlugin),
     ],
   })
 );
 
-// 3. 字體：長期快取
+// 字體
 registerRoute(
   ({ url }) => url.origin.includes('fonts.googleapis.com') || url.origin.includes('fonts.gstatic.com'),
   new CacheFirst({
     cacheName: 'font-cache',
     plugins: [
-      new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 30 * 24 * 60 * 60 }) as any,
-      new CacheableResponsePlugin({ statuses: [0, 200] }) as any,
+      (new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 30 * 24 * 60 * 60 }) as unknown as WorkboxPlugin),
+      (new CacheableResponsePlugin({ statuses: [0, 200] }) as unknown as WorkboxPlugin),
     ],
   })
 );
 
-// 4. 其他第三方 (如 CDN js/css)：網路優先，失敗回退快取
+// 第三方資源 (script/style)
 registerRoute(
   ({ request, url }) =>
     (request.destination === 'script' || request.destination === 'style') && url.origin !== self.location.origin,
   new NetworkFirst({
     cacheName: 'vendor-assets',
     plugins: [
-      new ExpirationPlugin({ maxEntries: 60, maxAgeSeconds: 24 * 60 * 60 }) as any,
-      new CacheableResponsePlugin({ statuses: [0, 200] }) as any,
+      (new ExpirationPlugin({ maxEntries: 60, maxAgeSeconds: 24 * 60 * 60 }) as unknown as WorkboxPlugin),
+      (new CacheableResponsePlugin({ statuses: [0, 200] }) as unknown as WorkboxPlugin),
     ],
     networkTimeoutSeconds: 4,
   })
 );
 
-// 5. HTML navigation 離線備援（若離線且失敗，回傳 precache 的 offline.html 若存在）
-self.addEventListener('fetch', (event: Event) => {
-  const fe = event as unknown as FetchEvent;
-  const request = fe.request as Request;
-  if (request && request.mode === 'navigate') {
-    fe.respondWith(
+// Navigation fetch fallback
+self.addEventListener('fetch', (event: FetchEvent) => {
+  const request = event.request;
+  if (request.mode === 'navigate') {
+    event.respondWith(
       (async () => {
         try {
           return await fetch(request);
@@ -124,17 +114,52 @@ self.addEventListener('fetch', (event: Event) => {
           const offlineResp = (await caches.match('/offline.html')) || (await cache.match('/offline.html'));
           if (offlineResp) return offlineResp;
           const handler = createHandlerBoundToURL(fallbackUrl);
-          return handler({ request, event: fe, url: new URL(fallbackUrl, self.location.origin) } as any);
+          return handler({ request, event, url: new URL(fallbackUrl, self.location.origin) } as any);
         }
       })()
     );
   }
 });
 
-// 接受前端訊息以立即啟用新版 SW
-self.addEventListener('message', (event: Event) => {
-  const me = event as unknown as ExtendableMessageEvent;
-  if (me.data && me.data.type === 'SKIP_WAITING') {
+// SKIP_WAITING 訊息
+self.addEventListener('message', (event: ExtendableMessageEvent) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
     void self.skipWaiting();
   }
+});
+
+// Push 事件
+self.addEventListener('push', (event: PushEvent) => {
+  let raw: any;
+  try { raw = event.data ? event.data.json() : {}; } catch { raw = {}; }
+  interface PushPayload { title?: string; body?: string; url?: string }
+  const data: PushPayload = raw;
+  const title = data.title || '通知';
+  const body = data.body || '有新的更新內容';
+  const url = data.url || '/';
+  const options: any = {
+    body,
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-128x128.png',
+    data: { url }
+  };
+  event.waitUntil((self as any).registration.showNotification(title, options));
+});
+
+// 通知點擊
+self.addEventListener('notificationclick', (event: NotificationEvent) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+  event.waitUntil(
+    (async () => {
+      const allClients = await (self as any).clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const existing = allClients.find((c: any) => 'focus' in c && c.url.includes(self.location.origin));
+      if (existing) {
+        await (existing as WindowClient).focus();
+        (existing as WindowClient).postMessage({ type: 'OPEN_URL', url: targetUrl });
+      } else {
+        await (self as any).clients.openWindow(targetUrl);
+      }
+    })()
+  );
 });
