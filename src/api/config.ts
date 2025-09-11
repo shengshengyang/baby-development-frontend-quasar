@@ -1,7 +1,7 @@
 // API 相關配置
 
 // 基本 API URL, 可透過環境變數設定
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://35.212.151.173:8080/';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://deanyang.it.com';
 
 export const apiConfig = {
   baseUrl: apiBaseUrl,
