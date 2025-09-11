@@ -27,8 +27,32 @@ register(process.env.SERVICE_WORKER_FILE, {
     // console.log('New content is downloading.')
   },
 
-  updated (/* registration */) {
-    // console.log('New content is available; please refresh.')
+  updated (registration) {
+    void import('quasar').then(({ Notify }) => {
+      Notify.create({
+        type: 'info',
+        message: '有新版本可用，點擊更新',
+        timeout: 8000,
+        actions: [
+          {
+            label: '更新',
+            color: 'white',
+            handler: () => {
+              if (!registration || !registration.waiting) {
+                window.location.reload();
+                return;
+              }
+              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+              const onControllerChange = () => {
+                navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+                window.location.reload();
+              };
+              navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+            },
+          },
+        ],
+      });
+    });
   },
 
   offline () {

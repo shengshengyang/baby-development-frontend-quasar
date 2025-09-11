@@ -10,23 +10,27 @@
 
         <!-- 輸入欄位 -->
         <q-card-section>
-          <q-input v-model="email" label="電子信箱" type="email" class="q-mb-md" />
-          <q-input v-model="password" label="密碼" type="password" class="q-mb-md" />
+          <q-input v-model="email" label="電子信箱" type="email" class="q-mb-md" :disable="isLoading" />
+          <q-input v-model="password" label="密碼" type="password" class="q-mb-md" :disable="isLoading" />
         </q-card-section>
 
         <!-- 登入按鈕 -->
         <q-card-actions align="center">
-          <q-btn label="登入" color="primary" @click="onLogin" class="full-width" />
+          <q-btn label="登入" color="primary" @click="onLogin" class="full-width" :loading="isLoading" :disable="isLoading" />
         </q-card-actions>
 
         <!-- 忘記密碼 / 註冊連結 -->
         <q-card-section class="text-center">
           <div class="auth-links">
-            <q-btn flat label="忘記密碼" color="primary" @click="onForgotPassword" />
+            <q-btn flat label="忘記密碼" color="primary" @click="onForgotPassword" :disable="isLoading" />
             <span class="separator">|</span>
-            <q-btn flat label="註冊" color="primary" @click="onRegister" />
+            <q-btn flat label="註冊" color="primary" @click="onRegister" :disable="isLoading" />
           </div>
         </q-card-section>
+
+        <q-inner-loading :showing="isLoading">
+          <q-spinner-dots color="primary" size="48px" />
+        </q-inner-loading>
       </q-card>
     </div>
   </q-page>
@@ -39,12 +43,14 @@ import { apiPost } from 'src/api/apiHelper';
 import { useUserStore } from 'src/stores/user';
 import type { UserData, Progress as StoreProgress } from 'src/stores/user';
 import { ProgressStatus } from 'src/api/services/progressService';
+import { Notify } from 'quasar';
 
 const router = useRouter();
 const userStore = useUserStore();
 
 const email = ref('');
 const password = ref('');
+const isLoading = ref(false);
 
 interface LoginResponse {
   username: string;
@@ -122,42 +128,33 @@ function convertLoginResponseToUserData(loginResponse: LoginResponse): UserData 
 }
 
 async function onLogin() {
+  if (isLoading.value) return;
+  isLoading.value = true;
   try {
     const result = await apiPost<LoginResponse>('/auth/login', {
       email: email.value,
       password: password.value,
     });
-    console.log('登入成功:', result);
-
-    // 轉換類型並儲存到 Pinia 全域 store 中
     const userData = convertLoginResponseToUserData(result);
     userStore.setUser(userData);
-
-    // 導航至 milestone 頁面
-    router.push('/milestone').catch((err) => {
-      if (err.name !== 'NavigationDuplicated') {
-        console.error('導航錯誤:', err);
-      }
+    await router.push('/milestone').catch((err) => {
+      if (err.name !== 'NavigationDuplicated') console.error('導航錯誤:', err);
     });
   } catch (error) {
     console.error('登入失敗:', error);
+    Notify.create({ type: 'negative', message: '登入失敗，請確認帳號或密碼', position: 'top' });
+  } finally {
+    isLoading.value = false;
   }
 }
 
 function onForgotPassword() {
-  router.push('/auth/forgot-password').catch((err) => {
-    if (err.name !== 'NavigationDuplicated') {
-      console.error('導航錯誤:', err);
-    }
-  });
+  if (isLoading.value) return;
+  router.push('/auth/forgot-password').catch((err) => { if (err.name !== 'NavigationDuplicated') console.error('導航錯誤:', err); });
 }
-
 function onRegister() {
-  router.push('/auth/register').catch((err) => {
-    if (err.name !== 'NavigationDuplicated') {
-      console.error('導航錯誤:', err);
-    }
-  });
+  if (isLoading.value) return;
+  router.push('/auth/register').catch((err) => { if (err.name !== 'NavigationDuplicated') console.error('導航錯誤:', err); });
 }
 </script>
 
@@ -180,6 +177,7 @@ function onRegister() {
   border-radius: 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   background-color: #ffffff;
+  position: relative;
 }
 
 .card-header {

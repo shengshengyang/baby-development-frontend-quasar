@@ -168,15 +168,15 @@ export default defineConfig((ctx) => {
 
     // https://v2.quasar.dev/quasar-cli-vite/developing-pwa/configuring-pwa
     pwa: {
-      workboxMode: 'GenerateSW', // 'GenerateSW' or 'InjectManifest'
-      // swFilename: 'sw.js',
-      // manifestFilename: 'manifest.json',
-      // extendManifestJson (json) {},
-      // useCredentialsForManifestTag: true,
-      // injectPwaMetaTags: false,
-      // extendPWACustomSWConf (esbuildConf) {},
-      // extendGenerateSWOptions (cfg) {},
-      // extendInjectManifestOptions (cfg) {}
+      workboxMode: 'InjectManifest', // 改為使用自訂 service worker
+      swFilename: 'sw.js',
+      injectPwaMetaTags: true,
+      // 可在此擴充 InjectManifest 的 workbox 設定
+      extendInjectManifestOptions (cfg) {
+        // 增加快取大小（視需求調整）
+        cfg.maximumFileSizeToCacheInBytes = 5 * 1024 * 1024; // 5MB
+      }
+      // manifest 與 service worker 檔案路徑使用預設 (src-pwa)
     },
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/developing-cordova-apps/configuring-cordova

@@ -1,9 +1,12 @@
+@use 'sass:color';
+
 // app global css in SCSS form
 
 // 導入 Google Fonts - 添加更多圓潤可愛的字體
 @import url('https://fonts.googleapis.com/css2?family=Bubblegum+Sans&family=Nunito:wght@400;600;700&family=Mochiy+Pop+One&family=Baloo+2:wght@400;600&display=swap');
 // 導入中文字體
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+
 
 // 全局樣式
 body {
@@ -34,7 +37,7 @@ body.body--dark {
   // 確保對話框和彈出窗口有正確的背景色
   .q-dialog__inner,
   .q-menu {
-    background-color: darken($dark, 3%);
+    background-color: color.adjust($dark, $lightness: -3%);
     color: $text-dark;
   }
 
@@ -46,7 +49,7 @@ body.body--dark {
 
   // 表格夜間樣式
   .q-table {
-    background-color: darken($dark, 2%);
+    background-color: color.adjust($dark, $lightness: -2%);
 
     th,
     td {
@@ -56,16 +59,16 @@ body.body--dark {
 
   // 滾動條夜間樣式
   ::-webkit-scrollbar {
-    background-color: darken($dark, 3%);
+    background-color: color.adjust($dark, $lightness: -3%);
 
     &-thumb {
-      background-color: lighten($dark, 15%);
+      background-color: color.adjust($dark, $lightness: 15%);
     }
   }
 
   // 確保頁腳在夜間模式下有正確的背景色
   .q-footer {
-    background-color: darken($dark, 5%);
+    background-color: color.adjust($dark, $lightness: -5%);
   }
 }
 

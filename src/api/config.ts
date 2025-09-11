@@ -1,12 +1,14 @@
 // API 相關配置
 
 // 基本 API URL, 可透過環境變數設定
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://35.212.151.173:8080/';
 
 export const apiConfig = {
   baseUrl: apiBaseUrl,
   endpoints: {
     milestones: '/api/milestone',
+    // 新增：flashcard 相關
+    flashcard: '/api/flashcard',
     // 新增：年齡選項
     ageOptions: '/api/options/ages',
     // 新增：分類選項

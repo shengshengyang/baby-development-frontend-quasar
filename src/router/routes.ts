@@ -1,11 +1,11 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 const routes: RouteRecordRaw[] = [
-  // 首頁直接使用 milestone 頁面，不需要登入
+  // 首頁改為介紹頁（不需要登入）
   {
     path: '/',
     component: () => import('layouts/AuthLayout.vue'),
-    children: [{ path: '', name: 'Milestone', component: () => import('pages/MilestonePage.vue') }],
+    children: [{ path: '', name: 'Home', component: () => import('pages/IntroHomePage.vue') }],
   },
   // 認證相關頁面（登入、註冊、驗證...）
   {
@@ -31,19 +31,27 @@ const routes: RouteRecordRaw[] = [
       { path: 'add-baby', name: 'AddBaby', component: () => import('pages/AddBabyPage.vue') },
     ],
   },
+  // 里程碑頁面
+  {
+    path: '/milestone',
+    component: () => import('layouts/AuthLayout.vue'),
+    children: [
+      { path: '', name: 'Milestone', component: () => import('pages/MilestonePage.vue') },
+    ],
+  },
+  // FlashCard 頁面
+  {
+    path: '/flashcard',
+    component: () => import('layouts/AuthLayout.vue'),
+    children: [
+      { path: '', name: 'FlashCard', component: () => import('pages/FlashCardPage.vue') },
+    ],
+  },
   // 疫苗接種時程表頁面
   {
     path: '/vaccine',
     component: () => import('layouts/AuthLayout.vue'),
     children: [{ path: '', name: 'Vaccine', component: () => import('pages/VaccinePage.vue') }],
-  },
-  // 如果需要讓 milestone 有其他 alias，也可以保留此路由（選用）
-  {
-    path: '/milestone',
-    component: () => import('layouts/AuthLayout.vue'),
-    children: [
-      { path: '', name: 'MilestoneAlias', component: () => import('pages/MilestonePage.vue') },
-    ],
   },
   // 捕捉所有未定義的路由
   {
