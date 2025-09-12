@@ -1,7 +1,7 @@
 // API 相關配置
 
 // 基本 API URL, 可透過環境變數設定
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://deanyang.it.com';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.deanyang.it.com';
 
 export const apiConfig = {
   baseUrl: apiBaseUrl,
