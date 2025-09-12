@@ -1,7 +1,7 @@
 <template>
   <q-layout view="lHh Lpr lFf">
     <!-- Header -->
-    <q-header elevated class="app-header">
+    <q-header elevated class="app-header" :class="{ 'header-hidden': !isHeaderVisible }">
       <q-toolbar>
         <!-- 左側選單按鈕 -->
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
@@ -50,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { Dark } from 'quasar';
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
 
@@ -137,6 +137,30 @@ function handleAuth() {
   console.log('Handle authentication: Login/Logout clicked');
   // 在此實作登入／登出邏輯
 }
+
+// 捲動隱藏 Header 控制
+const isHeaderVisible = ref(true);
+const lastScrollTop = ref(0);
+const scrollThreshold = 10; // 防抖閾值
+function handleScroll() {
+  const current = window.scrollY || document.documentElement.scrollTop;
+  if (Math.abs(current - lastScrollTop.value) > scrollThreshold) {
+    if (current > lastScrollTop.value) {
+      // 下滑 -> 隱藏
+      isHeaderVisible.value = false;
+    } else {
+      // 上滑 -> 顯示
+      isHeaderVisible.value = true;
+    }
+    lastScrollTop.value = current;
+  }
+}
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll, { passive: true });
+});
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
+});
 </script>
 
 <style lang="scss">
@@ -189,5 +213,13 @@ function handleAuth() {
   .drawer-header {
     color: $primary;
   }
+}
+
+.q-header {
+  transition: transform 0.3s ease;
+}
+
+.header-hidden {
+  transform: translateY(-100%);
 }
 </style>
