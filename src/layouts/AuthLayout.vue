@@ -1,7 +1,7 @@
 <template>
   <q-layout view="lHh Lpr lFf">
     <!-- Header 區塊 -->
-    <q-header elevated class="app-header">
+    <q-header elevated class="app-header" :class="{ 'header-hidden': !isHeaderVisible }">
       <q-toolbar>
         <q-toolbar-title class="app-title">GOAT Baby</q-toolbar-title>
 
@@ -132,6 +132,7 @@ const isDarkMode = ref(Dark.isActive);
 // 滾動控制相關
 const lastScrollTop = ref(0);
 const isFooterVisible = ref(true);
+const isHeaderVisible = ref(true);
 const scrollThreshold = 10; // 滾動閾值，用來防止輕微滾動觸發隱藏/顯示
 const showBackToTop = ref(false); // 控制回到頂部按鈕的顯示
 
@@ -148,9 +149,11 @@ function handleScroll() {
     if (currentScrollTop > lastScrollTop.value) {
       // 向下滾動
       isFooterVisible.value = false;
+      isHeaderVisible.value = false;
     } else {
       // 向上滾動
       isFooterVisible.value = true;
+      isHeaderVisible.value = true;
     }
     // 更新最後滾動位置
     lastScrollTop.value = currentScrollTop;
@@ -292,6 +295,15 @@ onMounted(() => {
   }
 }
 
+// Header 滾動顯示/隱藏效果
+.q-header {
+  transition: transform 0.3s ease;
+}
+
+.header-hidden {
+  transform: translateY(-100%);
+}
+
 // Footer 滾動顯示/隱藏效果
 .q-footer {
   transition: transform 0.3s ease;
@@ -310,7 +322,9 @@ onMounted(() => {
   color: #2c2c2c;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.06);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); // 增加額外緩衝
+  padding-top: 6px; // 上方留白，保持內��垂直置中
+  min-height: 72px; // 統一較高點的高度，提升可點擊性
 
   .footer-tabs {
     color: #5f6368;
@@ -320,6 +334,16 @@ onMounted(() => {
     .q-tab--active .q-tab__label,
     .q-tab--active .q-icon { color: var(--q-primary); }
   }
+}
+
+@media (min-width: 640px) { // 平板以上可調回較低高度
+  .footer-bar { min-height: 60px; }
+}
+
+// 若需要再壓縮 tab 排版避免被撐大
+.footer-tabs {
+  .q-tab { min-height: 44px; }
+  .q-tab__content { padding-bottom: 0; }
 }
 
 .body--dark {
