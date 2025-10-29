@@ -1,45 +1,57 @@
 /* MilestonePage.scss */
+@import './design-system.scss';
+
 .milestone-page {
-  background-color: #fafafa;
+  @include warm-background;
   min-height: 100vh;
 }
 
 .page-header {
-  text-align: center;
-  padding: 1rem 0 2rem;
+  @include page-header;
 }
 
 .age-filter {
-  max-width: 300px;
+  max-width: 400px;
   margin: 0 auto;
+
+  .q-select {
+    @include warm-card;
+    border-radius: $radius-md;
+  }
 }
 
 .category-title {
-  color: #5e412f;
-  border-bottom: 2px solid #f0c8a0;
-  padding-bottom: 0.5rem;
+  color: var(--q-primary);
+  border-bottom: 2px solid rgba(var(--q-primary-rgb), 0.3);
+  padding-bottom: $spacing-sm;
+  font-family: $font-family-heading;
+  letter-spacing: 0.05em;
 }
 
 .milestone-cards-container {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  gap: $spacing-lg;
 }
 
 .milestone-card {
-  width: 300px;
-  height: 350px;
+  width: 320px;
+  height: 380px;
   perspective: 1000px;
   cursor: pointer;
-  transition: transform 0.3s ease;
-}
+  transition: transform $transition-normal;
+  @include warm-card;
 
-.milestone-card:hover {
-  transform: translateY(-5px);
-}
+  &:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: $shadow-primary-glow;
+  }
 
-.milestone-card.achieved {
-  border: 3px solid #4caf50;
+  &.achieved {
+    border: 2px solid var(--q-positive);
+    box-shadow: $shadow-glow;
+  }
 }
 
 .milestone-card-inner {
@@ -48,10 +60,10 @@
   height: 100%;
   transition: transform 0.8s;
   transform-style: preserve-3d;
-}
 
-.milestone-card-inner.flipped {
-  transform: rotateY(180deg);
+  &.flipped {
+    transform: rotateY(180deg);
+  }
 }
 
 .milestone-front,
@@ -62,39 +74,72 @@
   backface-visibility: hidden;
   display: flex;
   flex-direction: column;
+  border-radius: $radius-lg;
+  overflow: hidden;
 }
 
 .milestone-front {
-  background-color: white;
+  background: white;
+
+  .body--dark & {
+    background: rgba(255, 255, 255, 0.05);
+  }
 }
 
 .milestone-back {
-  background-color: #f9f9f9;
+  background: linear-gradient(135deg,
+    rgba(167, 215, 232, 0.1),
+    rgba(255, 209, 220, 0.1)
+  );
   transform: rotateY(180deg);
   justify-content: space-between;
+
+  .body--dark & {
+    background: linear-gradient(135deg,
+      rgba(167, 215, 232, 0.05),
+      rgba(255, 209, 220, 0.05)
+    );
+  }
 }
 
 .milestone-image {
   position: relative;
-  height: 180px;
+  height: 200px;
+  overflow: hidden;
 }
 
 .milestone-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform $transition-slow;
+}
+
+.milestone-card:hover .milestone-img {
+  transform: scale(1.05);
 }
 
 .age-badge {
+  @include warm-badge;
   position: absolute;
-  top: 10px;
-  right: 10px;
-  font-size: 1rem;
-  font-weight: bold;
+  top: $spacing-md;
+  right: $spacing-md;
+  font-size: 0.875rem;
+  background: rgba(var(--q-primary-rgb), 0.95);
+  color: white;
+  backdrop-filter: blur(4px);
 }
 
 .milestone-content {
   flex-grow: 1;
+  padding: $spacing-md;
+
+  .text-h6 {
+    font-family: $font-family-heading;
+    letter-spacing: 0.05em;
+    line-height: 1.5;
+    margin-bottom: $spacing-sm;
+  }
 }
 
 .milestone-checkbox {
@@ -104,52 +149,61 @@
 .milestone-back-content {
   overflow-y: auto;
   flex-grow: 1;
+  padding: $spacing-lg;
+  font-family: $font-family-body;
+  line-height: 1.6;
 }
 
 .no-milestones {
-  color: #757575;
+  color: rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
-}
+  min-height: 400px;
+  padding: $spacing-2xl;
 
-// 增強標題字體樣式
-.page-header {
-  h2 {
-    font-family: 'Bubblegum Sans', 'Baloo 2', 'Noto Sans TC', cursive;
-    letter-spacing: 0.08em;
-    font-weight: 600;
-    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+  .body--dark & {
+    color: rgba(255, 255, 255, 0.5);
   }
 
-  p {
-    font-family: 'Nunito', 'Noto Sans TC', sans-serif;
-    letter-spacing: 0.03em;
-    font-weight: 500;
+  .q-icon {
+    opacity: 0.5;
+    margin-bottom: $spacing-lg;
   }
-}
 
-// 卡片標題優化
-.milestone-content {
   .text-h6 {
-    font-family: 'Baloo 2', 'Noto Sans TC', sans-serif;
-    letter-spacing: 0.05em;
-    line-height: 1.4;
+    font-family: $font-family-heading;
+    margin-bottom: $spacing-lg;
   }
-}
-
-// 年齡標籤優化
-.age-badge {
-  font-family: 'Mochiy Pop One', 'Noto Sans TC', sans-serif;
-  font-weight: normal;
-  letter-spacing: 0.05em;
 }
 
 // 分類標籤優化
 .q-tab {
-  font-family: 'Nunito', 'Noto Sans TC', sans-serif;
+  font-family: $font-family-body;
   font-weight: 600;
   letter-spacing: 0.05em;
+  transition: all $transition-fast;
+  border-radius: $radius-md;
+
+  &:hover {
+    background: rgba(var(--q-primary-rgb), 0.1);
+  }
+}
+
+// 徽章樣式
+.q-badge {
+  @include warm-badge;
+}
+
+// 狀態指示
+.status-pill {
+  @include warm-card;
+  padding: $spacing-sm $spacing-md;
+  border-radius: $radius-md;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(var(--q-primary-rgb), 0.05);
+  }
 }

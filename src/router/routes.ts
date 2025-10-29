@@ -47,12 +47,12 @@ const routes: RouteRecordRaw[] = [
       { path: '', name: 'FlashCard', component: () => import('pages/FlashCardPage.vue') },
     ],
   },
-  // 疫苗接種時程表頁面
-  {
-    path: '/vaccine',
-    component: () => import('layouts/AuthLayout.vue'),
-    children: [{ path: '', name: 'Vaccine', component: () => import('pages/VaccinePage.vue') }],
-  },
+  // 疫苗接種時程表頁面 (暫時隱藏)
+  // {
+  //   path: '/vaccine',
+  //   component: () => import('layouts/AuthLayout.vue'),
+  //   children: [{ path: '', name: 'Vaccine', component: () => import('pages/VaccinePage.vue') }],
+  // },
   // 捕捉所有未定義的路由
   {
     path: '/:catchAll(.*)*',

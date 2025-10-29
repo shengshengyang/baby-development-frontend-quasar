@@ -164,62 +164,104 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss">
+@import '../css/design-system.scss';
+
 .app-header {
-  background: linear-gradient(135deg, var(--q-primary) 0%, darken($primary, 15%) 100%);
+  background: linear-gradient(135deg, var(--q-primary) 0%, var(--q-secondary) 100%);
+  box-shadow: $shadow-medium;
+  transition: all $transition-normal;
+
+  &:not(.header-hidden) {
+    box-shadow: $shadow-primary-glow;
+  }
 }
 
 .app-title {
-  font-family: 'Bubblegum Sans', cursive;
+  font-family: $font-family-heading;
   font-size: 1.5rem;
+  letter-spacing: 0.08em;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .theme-toggle {
-  transition: transform 0.3s ease;
+  transition: transform $transition-normal;
 
   &:hover {
-    transform: rotate(30deg);
+    transform: rotate(30deg) scale(1.1);
   }
 }
 
+// 側邊抽屜
+.app-drawer {
+  @include glassmorphism;
+  border-right: 1px solid rgba(var(--q-primary-rgb), 0.1);
+
+  .body--light & {
+    background: linear-gradient(
+      180deg,
+      rgba(255, 248, 240, 0.95),
+      rgba(255, 255, 255, 0.95)
+    );
+  }
+
+  .body--dark & {
+    background: linear-gradient(
+      180deg,
+      rgba(42, 45, 52, 0.95),
+      rgba(37, 35, 53, 0.95)
+    );
+  }
+}
+
+.drawer-header {
+  font-family: $font-family-heading;
+  letter-spacing: 0.08em;
+  padding: $spacing-lg;
+  background: linear-gradient(135deg, var(--q-primary), var(--q-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+
+  .body--dark & {
+    opacity: 0.9;
+  }
+}
+
+// 主內容區背景
 .body--dark {
-  .app-header {
-    background: linear-gradient(135deg, darken($primary, 20%) 0%, darken($primary, 35%) 100%);
-  }
-
-  .app-drawer {
-    background-color: darken($dark, 3%);
-  }
-
-  .drawer-header {
-    color: lighten($text-dark, 5%);
-  }
-
-  // 確保主內容區在夜間模式下有正確的背景色
-  .q-page-container {
-    background-color: $bg-dark;
-  }
-
-  // 確保頁面在夜間模式下有正確的背景色
+  .q-page-container,
   .q-page {
-    background-color: $bg-dark;
+    @include warm-background;
   }
 }
 
 .body--light {
-  .app-drawer {
-    background-color: $bg-light;
-  }
-
-  .drawer-header {
-    color: $primary;
+  .q-page-container,
+  .q-page {
+    @include warm-background;
   }
 }
 
+// Header 動畫
 .q-header {
-  transition: transform 0.3s ease;
+  transition: all $transition-normal;
 }
 
 .header-hidden {
   transform: translateY(-100%);
+  box-shadow: none;
+}
+
+// 按鈕樣式
+.q-btn {
+  transition: all $transition-fast;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
 }
 </style>

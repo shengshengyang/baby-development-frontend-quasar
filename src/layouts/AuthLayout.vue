@@ -92,7 +92,8 @@
         <q-route-tab :to="{ name: 'Home' }" icon="home" label="首頁" />
         <q-route-tab :to="{ name: 'Milestone' }" icon="flag" label="里程碑" />
         <q-route-tab :to="{ name: 'FlashCard' }" icon="quiz" label="小卡" />
-        <q-route-tab :to="{ name: 'Vaccine' }" icon="vaccines" label="疫苗" />
+        <!-- 疫苗標籤 (暫時隱藏) -->
+        <!-- <q-route-tab :to="{ name: 'Vaccine' }" icon="vaccines" label="疫苗" /> -->
       </q-tabs>
     </q-footer>
 

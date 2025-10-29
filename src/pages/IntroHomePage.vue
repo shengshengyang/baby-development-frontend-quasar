@@ -36,7 +36,8 @@
           </q-card>
         </div>
 
-        <div class="col-12 col-sm-4">
+        <!-- 疫苗時程卡片 (暫時隱藏) -->
+        <!-- <div class="col-12 col-sm-4">
           <q-card flat bordered class="fit">
             <q-card-section class="text-center">
               <q-icon name="vaccines" color="primary" size="md" />
@@ -48,7 +49,7 @@
               <q-btn color="primary" label="前往" :to="{ name: 'Vaccine' }" flat />
             </q-card-actions>
           </q-card>
-        </div>
+        </div> -->
       </div>
 
       <div class="q-mt-xl">
@@ -161,7 +162,7 @@ function showInstallNotify() {
       {
         label: '安裝',
         color: 'yellow',
-        handler: () => installPWA(),
+        handler: () => void installPWA(),
       },
     ],
   });
@@ -181,10 +182,107 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
-.intro-wrap { max-width: 1000px; margin: 0 auto; }
-.pwa-install-area { max-width: 560px; background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.06); border-radius: 16px; }
-.body--dark .pwa-install-area { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); }
-.ios-guide { font-size: 13px; line-height: 1.5; }
-.install-state { font-size: 13px; }
+<style scoped lang="scss">
+@import '../css/design-system.scss';
+
+.intro-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.text-h5 {
+  font-family: $font-family-heading;
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, var(--q-primary), var(--q-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+}
+
+.text-body1 {
+  font-family: $font-family-body;
+  opacity: 0.85;
+  line-height: 1.6;
+}
+
+// 功能卡片樣式
+.q-card {
+  @include warm-card;
+  height: 100%;
+  border-radius: $radius-lg;
+
+  &:hover {
+    transform: translateY(-6px);
+    box-shadow: $shadow-primary-glow;
+  }
+}
+
+.q-icon {
+  transition: transform $transition-normal;
+}
+
+.q-card:hover .q-icon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+// PWA 安裝區域
+.pwa-install-area {
+  max-width: 600px;
+  @include glassmorphism;
+  border-radius: $radius-xl;
+  padding: $spacing-xl;
+  box-shadow: $shadow-soft;
+  transition: all $transition-normal;
+
+  &:hover {
+    box-shadow: $shadow-medium;
+  }
+
+  .text-subtitle1 {
+    font-family: $font-family-heading;
+    letter-spacing: 0.05em;
+  }
+
+  .text-caption {
+    font-family: $font-family-body;
+  }
+}
+
+.ios-guide {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  border-radius: $radius-md;
+
+  strong {
+    color: var(--q-primary);
+  }
+}
+
+.install-state {
+  font-size: 0.875rem;
+  font-family: $font-family-body;
+}
+
+// 主按鈕優化
+.q-btn[unelevated] {
+  @include warm-button;
+  padding: $spacing-md $spacing-xl;
+  font-size: 1.1rem;
+
+  &:hover {
+    box-shadow: $shadow-primary-glow;
+  }
+}
+
+// 卡片動作按鈕
+.q-card-actions .q-btn {
+  font-family: $font-family-body;
+  font-weight: 600;
+  transition: all $transition-normal;
+
+  &:hover {
+    background: rgba(var(--q-primary-rgb), 0.1);
+  }
+}
 </style>
