@@ -1,0 +1,250 @@
+/* ============================================
+   GOAT Baby - 統一設計系統
+   溫馨、柔和、親子友善的設計風格
+   ============================================ */
+
+// ========== 間距系統 ==========
+$spacing-xs: 0.25rem;   // 4px
+$spacing-sm: 0.5rem;    // 8px
+$spacing-md: 1rem;      // 16px
+$spacing-lg: 1.5rem;    // 24px
+$spacing-xl: 2rem;      // 32px
+$spacing-2xl: 3rem;     // 48px
+
+// ========== 圓角系統 ==========
+$radius-sm: 8px;
+$radius-md: 12px;
+$radius-lg: 16px;
+$radius-xl: 24px;
+$radius-full: 9999px;
+
+// ========== 陰影系統 ==========
+$shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.08);
+$shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.1);
+$shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.12);
+$shadow-glow: 0 0 20px rgba(79, 179, 191, 0.2);
+
+// 溫馨的彩色陰影
+$shadow-primary-glow: 0 4px 16px rgba(79, 179, 191, 0.25);
+$shadow-secondary-glow: 0 4px 16px rgba(255, 154, 118, 0.25);
+$shadow-accent-glow: 0 4px 16px rgba(233, 122, 178, 0.25);
+
+// ========== 字體系統 ==========
+$font-family-heading: 'Bubblegum Sans', 'Baloo 2', 'Noto Sans TC', cursive;
+$font-family-body: 'Nunito', 'Noto Sans TC', sans-serif;
+$font-family-playful: 'Mochiy Pop One', 'Noto Sans TC', sans-serif;
+
+// ========== 過渡動畫 ==========
+$transition-fast: 0.2s ease;
+$transition-normal: 0.3s ease;
+$transition-slow: 0.5s ease;
+
+// ========== Mixins ==========
+
+// 溫馨卡片樣式
+@mixin warm-card {
+  background: white;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-soft;
+  transition: all $transition-normal;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: $shadow-medium;
+  }
+
+  .body--dark & {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+  }
+}
+
+// 頁面標題樣式
+@mixin page-header {
+  text-align: center;
+  padding: $spacing-lg 0 $spacing-xl;
+
+  h2 {
+    font-family: $font-family-heading;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: $spacing-md;
+    background: linear-gradient(135deg, var(--q-primary), var(--q-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  p {
+    font-family: $font-family-body;
+    letter-spacing: 0.03em;
+    font-weight: 500;
+    opacity: 0.85;
+  }
+}
+
+// 溫馨的背景
+@mixin warm-background {
+  background: linear-gradient(
+    135deg,
+    rgba(167, 215, 232, 0.1) 0%,
+    rgba(255, 209, 220, 0.1) 50%,
+    rgba(193, 225, 193, 0.1) 100%
+  );
+
+  .body--dark & {
+    background: linear-gradient(
+      135deg,
+      rgba(167, 215, 232, 0.03) 0%,
+      rgba(255, 209, 220, 0.03) 50%,
+      rgba(193, 225, 193, 0.03) 100%
+    );
+  }
+}
+
+// 按鈕樣式
+@mixin warm-button {
+  border-radius: $radius-md;
+  font-family: $font-family-body;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  transition: all $transition-normal;
+  box-shadow: $shadow-soft;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-medium;
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// 徽章樣式
+@mixin warm-badge {
+  border-radius: $radius-md;
+  padding: $spacing-xs $spacing-sm;
+  font-family: $font-family-playful;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  box-shadow: $shadow-soft;
+}
+
+// 進度指示器
+@mixin status-indicator($color) {
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 100%;
+    background: $color;
+    border-radius: $radius-full;
+  }
+}
+
+// 漸變文字
+@mixin gradient-text($color1: var(--q-primary), $color2: var(--q-secondary)) {
+  background: linear-gradient(135deg, $color1, $color2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+// 柔和的分隔線
+@mixin soft-divider {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(0, 0, 0, 0.1) 50%,
+    transparent
+  );
+
+  .body--dark & {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent
+    );
+  }
+}
+
+// 玻璃形態效果
+@mixin glassmorphism {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+
+  .body--dark & {
+    background: rgba(42, 45, 52, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+// 互動式卡片
+@mixin interactive-card {
+  @include warm-card;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(79, 179, 191, 0.1),
+      rgba(255, 154, 118, 0.1)
+    );
+    opacity: 0;
+    transition: opacity $transition-normal;
+  }
+
+  &:hover::after {
+    opacity: 1;
+  }
+}
+
+// 溫馨的輸入框
+@mixin warm-input {
+  border-radius: $radius-md;
+  border: 2px solid rgba(79, 179, 191, 0.2);
+  transition: all $transition-normal;
+
+  &:focus {
+    border-color: var(--q-primary);
+    box-shadow: $shadow-primary-glow;
+  }
+}
+
+// 響應式容器
+@mixin container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 $spacing-md;
+
+  @media (min-width: 768px) {
+    padding: 0 $spacing-lg;
+  }
+}

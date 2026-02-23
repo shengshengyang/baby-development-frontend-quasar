@@ -40,6 +40,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { apiPost } from 'src/api/apiHelper';
+import { apiConfig } from 'src/api/config';
 import { useUserStore } from 'src/stores/user';
 import type { UserData, Progress as StoreProgress } from 'src/stores/user';
 import { ProgressStatus } from 'src/api/services/progressService';
@@ -131,7 +132,7 @@ async function onLogin() {
   if (isLoading.value) return;
   isLoading.value = true;
   try {
-    const result = await apiPost<LoginResponse>('/auth/login', {
+    const result = await apiPost<LoginResponse>(apiConfig.endpoints.login, {
       email: email.value,
       password: password.value,
     });

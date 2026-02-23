@@ -14,11 +14,12 @@ export const apiConfig = {
     // 新增：分類選項
     categoryOptions: '/api/options/categories',
     // 認證相關
-    login: '/auth/login',
+    login: '/api/auth/login',
     // 寶寶相關
     createBaby: '/baby',
     // 進度相關
     progressByBaby: '/api/progress/baby/{babyId}',
+    updateProgressStatus: '/api/progress/update-status',
     // 疫苗相關
     vaccineSchedules: '/baby/{babyId}/schedules',
     updateVaccineSchedule: '/baby/{babyId}/schedules/{scheduleId}',
