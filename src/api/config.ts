@@ -1,7 +1,7 @@
 // API 相關配置
 
 // 基本 API URL, 可透過環境變數設定
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://35.212.151.173:8080/';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/';
 
 export const apiConfig = {
   baseUrl: apiBaseUrl,
@@ -14,11 +14,12 @@ export const apiConfig = {
     // 新增：分類選項
     categoryOptions: '/api/options/categories',
     // 認證相關
-    login: '/auth/login',
+    login: '/api/auth/login',
     // 寶寶相關
     createBaby: '/baby',
     // 進度相關
     progressByBaby: '/api/progress/baby/{babyId}',
+    updateProgressStatus: '/api/progress/update-status',
     // 疫苗相關
     vaccineSchedules: '/baby/{babyId}/schedules',
     updateVaccineSchedule: '/baby/{babyId}/schedules/{scheduleId}',

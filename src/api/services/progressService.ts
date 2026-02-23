@@ -70,7 +70,7 @@ export async function fetchBabyProgresses(babyId: string): Promise<BabyProgressR
  * @returns 更新後的進度數據
  */
 export async function updateProgressStatus(request: UpdateProgressRequest): Promise<UpdateProgressResponse> {
-  return await apiPost<UpdateProgressResponse>('/api/progress/update-status', request);
+  return await apiPost<UpdateProgressResponse>(apiConfig.endpoints.updateProgressStatus, request);
 }
 
 /**
