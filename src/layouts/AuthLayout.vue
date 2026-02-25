@@ -400,14 +400,29 @@ onMounted(() => {
   .q-page { background-color: $bg-dark; }
 
   // 夜間主題下的底部欄（毛玻璃）
-  .q-footer {
-    background-color: rgba(16, 18, 20, 0.7);
+  .q-footer,
+  .footer-bar {
+    background-color: rgba(30, 30, 40, 0.9) !important;
     backdrop-filter: saturate(140%) blur(12px);
     -webkit-backdrop-filter: saturate(140%) blur(12px);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.3);
+    color: rgba(240, 230, 213, 1);
 
-    .footer-tabs { color: rgba(255, 255, 255, 0.8); }
+    .footer-tabs {
+      color: rgba(240, 230, 213, 0.85) !important;
+
+      .q-tab {
+        color: rgba(240, 230, 213, 0.7);
+
+        &--active {
+          .q-tab__label,
+          .q-tab__icon {
+            color: var(--q-primary) !important;
+          }
+        }
+      }
+    }
   }
 }
 
