@@ -1,6 +1,7 @@
 // 里程碑相關 API 服務（重構整合 age/category options 與篩選）
 import apiClient from '../apiClient';
 import { apiConfig } from '../config';
+import { useLocaleStore, type LocaleCode } from 'src/stores/locale';
 import type { Milestone, AgeOption, CategoryOption } from 'src/types/milestone';
 
 interface RawOption {
@@ -17,7 +18,6 @@ function isRawOption(o: unknown): o is RawOption {
 export interface MilestoneQueryParams {
   ageId?: string | null;
   categoryId?: string | null;
-  language?: string;
 }
 
 function buildQuery(params?: MilestoneQueryParams): string {
@@ -28,10 +28,22 @@ function buildQuery(params?: MilestoneQueryParams): string {
   return search.toString();
 }
 
+// 將 locale 格式轉換為後端接受的格式
+function getAcceptLanguage(locale: LocaleCode): string {
+  return locale === 'zh-TW' ? 'zh_TW' : 'en_US';
+}
+
+// 取得翻譯後的「全部」標籤
+function getAllLabel(): string {
+  const localeStore = useLocaleStore();
+  return localeStore.currentLocale === 'zh-TW' ? '全部' : 'All';
+}
+
 export const milestoneService = {
   /** 取得里程碑列表 */
   async getMilestones(params?: MilestoneQueryParams): Promise<Milestone[]> {
-    const language = params?.language || 'zh_TW';
+    const localeStore = useLocaleStore();
+    const language = getAcceptLanguage(localeStore.currentLocale);
     const query = buildQuery(params);
     const url = query
       ? `${apiConfig.endpoints.milestones}?${query}`
@@ -48,14 +60,16 @@ export const milestoneService = {
   },
 
   /** 取得年齡選項 */
-  async getAgeOptions(language = 'zh_TW'): Promise<AgeOption[]> {
+  async getAgeOptions(): Promise<AgeOption[]> {
+    const localeStore = useLocaleStore();
+    const language = getAcceptLanguage(localeStore.currentLocale);
     try {
       const res = await apiClient.get(apiConfig.endpoints.ageOptions, {
         headers: { 'Accept-Language': language, Accept: 'application/json' },
       });
       const list: unknown[] = Array.isArray(res.data) ? res.data : [];
       return [
-        { label: '全部', value: null },
+        { label: getAllLabel(), value: null },
         ...list
           .filter(isRawOption)
           .filter(o => typeof o.label === 'string' && (typeof o.value === 'string' || typeof o.value === 'number'))
@@ -69,19 +83,21 @@ export const milestoneService = {
       ];
     } catch (e) {
       console.error('getAgeOptions error', e);
-      return [{ label: '全部', value: null }];
+      return [{ label: getAllLabel(), value: null }];
     }
   },
 
   /** 取得分類選項 */
-  async getCategoryOptions(language = 'zh_TW'): Promise<CategoryOption[]> {
+  async getCategoryOptions(): Promise<CategoryOption[]> {
+    const localeStore = useLocaleStore();
+    const language = getAcceptLanguage(localeStore.currentLocale);
     try {
       const res = await apiClient.get(apiConfig.endpoints.categoryOptions, {
         headers: { 'Accept-Language': language, Accept: 'application/json' },
       });
       const list: unknown[] = Array.isArray(res.data) ? res.data : [];
       return [
-        { label: '全部', value: null },
+        { label: getAllLabel(), value: null },
         ...list
           .filter(isRawOption)
           .filter(o => typeof o.label === 'string' && typeof o.value === 'string')
@@ -89,7 +105,7 @@ export const milestoneService = {
       ];
     } catch (e) {
       console.error('getCategoryOptions error', e);
-      return [{ label: '全部', value: null }];
+      return [{ label: getAllLabel(), value: null }];
     }
   },
 };

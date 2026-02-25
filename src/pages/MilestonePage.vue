@@ -1,14 +1,14 @@
 <template>
   <q-page class="q-pa-md milestone-page">
     <div class="page-header">
-      <h2 class="text-h4 text-primary q-mb-md">寶寶發展里程碑</h2>
-      <p class="text-subtitle1 q-mb-lg">追蹤您寶寶的成長與發展階段</p>
+      <h2 class="text-h4 text-primary q-mb-md">{{ $t('milestone.title') }}</h2>
+      <p class="text-subtitle1 q-mb-lg">{{ $t('milestone.subtitle') }}</p>
     </div>
     <q-linear-progress v-if="isFetching" indeterminate color="primary" class="q-mb-md" />
     <div class="age-filter q-mb-lg">
       <div class="age-selector-container">
         <q-btn :disabled="!canGoToPreviousAge" icon="chevron_left" flat round color="primary" @click="goToPreviousAge" class="age-nav-btn" />
-        <q-select name="ageFilter" v-model="selectedAgeId" :options="ageOptions" label="年齡篩選" outlined emit-value map-options class="age-selector" />
+        <q-select name="ageFilter" v-model="selectedAgeId" :options="ageOptions" :label="$t('milestone.ageFilter')" outlined emit-value map-options class="age-selector" />
         <q-btn :disabled="!canGoToNextAge" icon="chevron_right" flat round color="primary" @click="goToNextAge" class="age-nav-btn" />
       </div>
     </div>
@@ -29,18 +29,18 @@
           <div class="milestone-front">
             <div class="milestone-image">
               <q-img :src="m.imageBase64 || ''" class="milestone-img" ratio="16/9" />
-              <q-badge color="primary" class="age-badge">{{ m.age.displayName }}</q-badge>
+              <q-badge color="primary" class="age-badge">{{ getAgeDisplayName(m.age) }}</q-badge>
             </div>
             <div class="milestone-content q-pa-md">
-              <div class="text-h6 ellipsis-2-lines">{{ m.subject || m.description }}</div>
+              <div class="text-h6 ellipsis-2-lines">{{ getMilestoneTitle(m) }}</div>
               <div class="q-mt-xs text-caption text-grey-7 row items-center q-gutter-x-sm">
                 <q-badge color="secondary" outline>{{ m.category.name }}</q-badge>
-                <q-badge v-if="isAchieved(m.id)" color="positive" outline>已完成</q-badge>
+                <q-badge v-if="isAchieved(m.id)" color="positive" outline>{{ $t('milestone.completed') }}</q-badge>
               </div>
               <div v-if="userStore.isLoggedIn" class="q-mt-sm">
                 <div class="row items-center clickable q-pa-xs rounded-borders status-pill" @click.stop="openStatusDialog(m.id)">
                   <StatusIcon :status="getMilestoneStatus(m.id)" :size="14" />
-                  <span class="q-ml-sm text-body2">{{ getProgressStatusDisplayName(getMilestoneStatus(m.id)) }}</span>
+                  <span class="q-ml-sm text-body2">{{ getLocalizedProgressStatus(getMilestoneStatus(m.id)) }}</span>
                   <q-space />
                   <q-icon name="expand_more" size="16px" />
                 </div>
@@ -53,38 +53,38 @@
 
     <div v-else class="no-milestones q-pa-xl text-center">
       <q-icon name="search_off" size="4rem" color="grey-6" />
-      <p class="text-h6 q-mt-md">沒有找到符合此分類與年齡階段的里程碑</p>
-      <q-btn color="primary" label="查看全部" @click="resetFilters" class="q-mt-md" />
+      <p class="text-h6 q-mt-md">{{ $t('milestone.noData') }}</p>
+      <q-btn color="primary" :label="$t('common.viewAll')" @click="resetFilters" class="q-mt-md" />
     </div>
 
     <q-dialog v-model="isLoading" persistent>
       <q-card class="bg-transparent shadow-0">
         <q-card-section class="row items-center justify-center">
           <q-spinner-dots color="primary" size="80px" />
-          <div class="q-mt-md text-white text-center">更新進度中...</div>
+          <div class="q-mt-md text-white text-center">{{ $t('milestone.updatingProgress') }}</div>
         </q-card-section>
       </q-card>
     </q-dialog>
 
     <q-dialog v-model="statusDialog.open">
       <q-card style="min-width: 280px">
-        <q-card-section class="text-subtitle1">更新進度狀態</q-card-section>
+        <q-card-section class="text-subtitle1">{{ $t('milestone.updateStatusTitle') }}</q-card-section>
         <q-separator />
         <q-list bordered padding>
           <q-item clickable v-ripple @click="selectStatus(ProgressStatus.NOT_STARTED)">
             <q-item-section avatar><StatusIcon :status="ProgressStatus.NOT_STARTED" :size="16" /></q-item-section>
-            <q-item-section>未開始</q-item-section>
+            <q-item-section>{{ $t('progress.notStarted') }}</q-item-section>
           </q-item>
           <q-item clickable v-ripple @click="selectStatus(ProgressStatus.IN_PROGRESS)">
             <q-item-section avatar><StatusIcon :status="ProgressStatus.IN_PROGRESS" :size="16" /></q-item-section>
-            <q-item-section>已開始</q-item-section>
+            <q-item-section>{{ $t('progress.inProgress') }}</q-item-section>
           </q-item>
             <q-item clickable v-ripple @click="selectStatus(ProgressStatus.COMPLETED)">
               <q-item-section avatar><StatusIcon :status="ProgressStatus.COMPLETED" :size="16" /></q-item-section>
-              <q-item-section>已完成</q-item-section>
+              <q-item-section>{{ $t('progress.completed') }}</q-item-section>
             </q-item>
         </q-list>
-        <q-card-actions align="right"><q-btn flat color="grey-7" label="取消" v-close-popup /></q-card-actions>
+        <q-card-actions align="right"><q-btn flat color="grey-7" :label="$t('common.cancel')" v-close-popup /></q-card-actions>
       </q-card>
     </q-dialog>
 
@@ -92,54 +92,54 @@
     <q-dialog v-model="milestoneDetailDialog.open" maximized transition-show="slide-up" transition-hide="slide-down">
       <q-card class="q-pa-none column fit">
         <q-bar class="bg-primary text-white">
-          <div class="text-subtitle2">{{ currentMilestoneTitle }}</div>
+          <div class="text-subtitle2">{{ milestoneDetailDialog.milestone ? getMilestoneTitle(milestoneDetailDialog.milestone) : $t('milestone.detailTitle') }}</div>
           <q-space />
           <q-btn dense flat icon="close" @click="closeMilestoneDetail" />
         </q-bar>
         <q-scroll-area class="col">
           <div class="q-pa-md">
-            <div class="text-h5 q-mb-sm">{{ currentMilestoneTitle }}</div>
+            <div class="text-h5 q-mb-sm">{{ milestoneDetailDialog.milestone ? getMilestoneTitle(milestoneDetailDialog.milestone) : $t('milestone.detailTitle') }}</div>
             <div class="row q-col-gutter-lg">
               <div class="col-12 col-md-7">
                 <div class="media-block q-mb-md">
                   <q-img v-if="milestoneDetailDialog.milestone?.imageBase64" :src="milestoneDetailDialog.milestone?.imageBase64 || ''" ratio="16/9" class="rounded-borders q-mb-md" />
-                  <div v-else class="q-mb-md text-grey text-caption">無圖片</div>
+                  <div v-else class="q-mb-md text-grey text-caption">{{ $t('milestone.noImage') }}</div>
                   <div v-if="milestoneDetailDialog.milestone?.videoUrl" class="video-wrapper q-mb-md">
                     <video :src="milestoneDetailDialog.milestone?.videoUrl" controls style="width:100%;border-radius:8px;" />
                   </div>
-                  <div v-else class="q-mb-md text-grey text-caption">無影片</div>
+                  <div v-else class="q-mb-md text-grey text-caption">{{ $t('milestone.noVideo') }}</div>
                 </div>
                 <div class="row items-center q-gutter-sm q-mb-md">
-                  <q-badge color="primary" outline>{{ milestoneDetailDialog.milestone?.age.displayName }}</q-badge>
+                  <q-badge color="primary" outline>{{ milestoneDetailDialog.milestone ? getAgeDisplayName(milestoneDetailDialog.milestone.age) : '' }}</q-badge>
                   <q-badge color="secondary" outline>{{ milestoneDetailDialog.milestone?.category.name }}</q-badge>
-                  <q-badge v-if="milestoneDetailDialog.milestone && isAchieved(milestoneDetailDialog.milestone.id)" color="positive" outline>已完成</q-badge>
+                  <q-badge v-if="milestoneDetailDialog.milestone && isAchieved(milestoneDetailDialog.milestone.id)" color="positive" outline>{{ $t('milestone.completed') }}</q-badge>
                 </div>
-                <div class="text-h6 q-mb-xs">描述</div>
-                <div class="text-body1 q-mb-lg whitespace-pre-line">{{ milestoneDetailDialog.milestone?.description }}</div>
+                <div class="text-h6 q-mb-xs">{{ $t('milestone.description') }}</div>
+                <div class="text-body1 q-mb-lg whitespace-pre-line">{{ milestoneDetailDialog.milestone ? getMilestoneDescription(milestoneDetailDialog.milestone) : '' }}</div>
                 <q-btn v-if="userStore.isLoggedIn && milestoneDetailDialog.milestone" size="sm" flat round :icon="flashcardStatusIcon(getMilestoneStatus(milestoneDetailDialog.milestone.id))" :color="flashcardStatusColor(getMilestoneStatus(milestoneDetailDialog.milestone.id))" @click.stop="cycleMilestoneStatus(milestoneDetailDialog.milestone.id)" />
-                <span v-if="milestoneDetailDialog.milestone" class="text-caption text-grey-7 q-ml-xs">{{ getProgressStatusDisplayName(getMilestoneStatus(milestoneDetailDialog.milestone.id)) }}</span>
+                <span v-if="milestoneDetailDialog.milestone" class="text-caption text-grey-7 q-ml-xs">{{ getLocalizedProgressStatus(getMilestoneStatus(milestoneDetailDialog.milestone.id)) }}</span>
               </div>
               <div class="col-12 col-md-5">
-                <div class="text-h6 q-mb-sm">相關 FlashCards</div>
+                <div class="text-h6 q-mb-sm">{{ $t('milestone.relatedFlashcards') }}</div>
                 <!-- 狀態圖示與說明區塊 -->
                 <div class="row items-center q-gutter-md q-mb-xs">
                   <div class="col-auto">
                     <q-icon name="radio_button_unchecked" color="grey" size="18px" />
-                    <span class="text-caption q-ml-xs">未開始</span>
+                    <span class="text-caption q-ml-xs">{{ $t('progress.notStarted') }}</span>
                   </div>
                   <div class="col-auto">
                     <q-icon name="play_circle" color="warning" size="18px" />
-                    <span class="text-caption q-ml-xs">已開始</span>
+                    <span class="text-caption q-ml-xs">{{ $t('progress.inProgress') }}</span>
                   </div>
                   <div class="col-auto">
                     <q-icon name="check_circle" color="positive" size="18px" />
-                    <span class="text-caption q-ml-xs">已完成</span>
+                    <span class="text-caption q-ml-xs">{{ $t('progress.completed') }}</span>
                   </div>
                   <div class="col">
-                    <span class="text-caption text-grey-7">（登入可點擊狀態按鈕切換）</span>
+                    <span class="text-caption text-grey-7">{{ $t('milestone.statusHint') }}</span>
                   </div>
                 </div>
-                <div v-if="flashcardsOfCurrentMilestone.length === 0" class="text-grey">無相關 FlashCards</div>
+                <div v-if="flashcardsOfCurrentMilestone.length === 0" class="text-grey">{{ $t('milestone.noFlashcards') }}</div>
                 <div v-else>
                   <q-list separator bordered class="rounded-borders">
                     <q-expansion-item
@@ -158,7 +158,7 @@
                           </div>
                           <div style="flex:0 0 auto;display:flex;align-items:center;">
                             <q-btn v-if="userStore.isLoggedIn" size="sm" flat round :icon="flashcardStatusIcon(getFlashcardStatus(fc.id))" :color="flashcardStatusColor(getFlashcardStatus(fc.id))" @click.stop="cycleFlashcardStatus(fc.id)" />
-                            <span class="text-caption text-grey-7 q-ml-xs">{{ getProgressStatusDisplayName(getFlashcardStatus(fc.id)) }}</span>
+                            <span class="text-caption text-grey-7 q-ml-xs">{{ getLocalizedProgressStatus(getFlashcardStatus(fc.id)) }}</span>
                           </div>
                         </div>
                       </template>
@@ -183,7 +183,7 @@
           <q-btn
             flat
             color="primary"
-            label="關閉"
+            :label="$t('common.close')"
             @click="closeMilestoneDetail"
             block
             class="milestone-footer-btn"
@@ -197,13 +197,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useUserStore } from 'src/stores/user';
+import { useLocaleStore } from 'src/stores/locale';
 import { Notify } from 'quasar';
 import { milestoneService } from 'src/api/services/milestoneService';
 import {
   updateProgressStatus,
   ProgressStatus,
-  getProgressStatusDisplayName,
   type UpdateProgressRequest,
   fetchBabyProgresses,
 } from 'src/api/services/progressService';
@@ -211,11 +212,14 @@ import type { Progress } from 'src/components/models';
 import StatusIcon from 'src/components/StatusIcon.vue';
 import type { Milestone, AgeOption, CategoryOption, MilestoneFlashcard } from 'src/types/milestone';
 
+const { t } = useI18n();
+
 const milestones = ref<Milestone[]>([]);
 const userStore = useUserStore();
+const localeStore = useLocaleStore();
 const achievedMilestones = ref<string[]>([]);
 const selectedAgeId = ref<string | null>(null);
-const ageOptions = ref<AgeOption[]>([{ label: '全部', value: null }]);
+const ageOptions = ref<AgeOption[]>([{ label: t('common.all'), value: null }]);
 const hasAutoSelectedAge = ref(false);
 const categoryOptions = ref<CategoryOption[]>([]);
 const activeCategoryId = ref<string | null>(null);
@@ -224,6 +228,20 @@ const isFetching = ref(false);
 const statusDialog = ref<{ open: boolean; milestoneId: string | null }>({ open: false, milestoneId: null });
 const milestoneDetailDialog = ref<{ open: boolean; milestone: Milestone | null }>({ open: false, milestone: null });
 const expandedFlashcardId = ref<string | null>(null);
+
+// 取得本地化的進度狀態名稱
+function getLocalizedProgressStatus(status: ProgressStatus): string {
+  switch (status) {
+    case ProgressStatus.NOT_STARTED:
+      return t('progress.notStarted');
+    case ProgressStatus.IN_PROGRESS:
+      return t('progress.inProgress');
+    case ProgressStatus.COMPLETED:
+      return t('progress.completed');
+    default:
+      return t('progress.notStarted');
+  }
+}
 
 function mapProgressResponseToStoreProgress(resp: { id: string; babyId: string; flashcardId?: string | null; milestoneId?: string | null; progressStatus: string; dateAchieved?: string | null; dateStarted?: string | null; }): Progress {
   const status = (resp.progressStatus as keyof typeof ProgressStatus) in ProgressStatus
@@ -250,7 +268,7 @@ async function fetchAndSyncBabyProgresses() {
     const mapped: Progress[] = list.map(mapProgressResponseToStoreProgress);
     userStore.updateSelectedBaby({ ...baby, progresses: mapped });
     updateAchievedMilestonesFromProgress();
-  } catch (e) { console.error('同步寶寶進度失敗:', e); }
+  } catch (e) { console.error(t('milestone.syncProgressFailed'), e); }
 }
 
 function getMilestoneStatus(milestoneId: string): ProgressStatus {
@@ -263,7 +281,7 @@ function getFlashcardStatus(flashcardId: string): ProgressStatus {
 }
 
 async function updateMilestoneStatus(milestoneId: string, newStatus: ProgressStatus) {
-  if (!userStore.isLoggedIn || !userStore.selectedBaby) { Notify.create({ type: 'warning', message: '請先登入並選擇寶寶', position: 'top' }); return; }
+  if (!userStore.isLoggedIn || !userStore.selectedBaby) { Notify.create({ type: 'warning', message: t('milestone.pleaseLogin'), position: 'top' }); return; }
   try {
     isLoading.value = true;
     const requestData: UpdateProgressRequest = { babyId: userStore.selectedBaby.id, status: newStatus, milestoneId, date: new Date().toISOString() };
@@ -271,19 +289,19 @@ async function updateMilestoneStatus(milestoneId: string, newStatus: ProgressSta
     updateLocalProgressStatusByKey({ milestoneId }, newStatus);
     updateAchievedMilestonesFromProgress();
     await fetchAndSyncBabyProgresses();
-    Notify.create({ type: 'positive', message: `里程碑狀態已更新為：${getProgressStatusDisplayName(newStatus)}`, position: 'top' });
-  } catch (e) { console.error(e); Notify.create({ type: 'negative', message: '更新里程碑狀態時發生錯誤', position: 'top' }); }
+    Notify.create({ type: 'positive', message: t('milestone.statusUpdated', { status: getLocalizedProgressStatus(newStatus) }), position: 'top' });
+  } catch (e) { console.error(e); Notify.create({ type: 'negative', message: t('milestone.updateFailed'), position: 'top' }); }
   finally { isLoading.value = false; }
 }
 
 async function updateFlashcardStatus(flashcardId: string, newStatus: ProgressStatus) {
-  if (!userStore.isLoggedIn || !userStore.selectedBaby) { Notify.create({ type: 'warning', message: '請先登入並選擇寶寶', position: 'top' }); return; }
+  if (!userStore.isLoggedIn || !userStore.selectedBaby) { Notify.create({ type: 'warning', message: t('milestone.pleaseLogin'), position: 'top' }); return; }
   try {
     const requestData: UpdateProgressRequest = { babyId: userStore.selectedBaby.id, status: newStatus, flashcardId, date: new Date().toISOString() };
     await updateProgressStatus(requestData);
     updateLocalProgressStatusByKey({ flashcardId }, newStatus);
     await fetchAndSyncBabyProgresses();
-  } catch (e) { console.error(e); Notify.create({ type: 'negative', message: '更新 FlashCard 狀態失敗', position: 'top' }); }
+  } catch (e) { console.error(e); Notify.create({ type: 'negative', message: t('milestone.flashcardStatusFailed'), position: 'top' }); }
 }
 
 function updateLocalProgressStatusByKey(key: { milestoneId?: string; flashcardId?: string }, status: ProgressStatus) {
@@ -316,6 +334,13 @@ function statusClass(milestoneId: string) { const s = getMilestoneStatus(milesto
 
 watch(() => userStore.selectedBaby, () => { updateAchievedMilestonesFromProgress(); }, { deep: true });
 watch([selectedAgeId, activeCategoryId], async () => { await fetchMilestones(); });
+watch(() => localeStore.currentLocale, async () => {
+  await Promise.all([
+    fetchAgeOptions(),
+    fetchCategoryOptions(),
+    fetchMilestones(),
+  ]);
+});
 
 const filteredMilestonesByCategory = computed<Milestone[]>(() => {
   return [...milestones.value].sort((a,b)=> { const aAch = isAchieved(a.id); const bAch = isAchieved(b.id); if (aAch && !bAch) return 1; if (!aAch && bAch) return -1; return 0; });
@@ -340,6 +365,43 @@ function resetFilters() { selectedAgeId.value = null; activeCategoryId.value = n
 function onCategoryTabChange(val: string | number | undefined) { activeCategoryId.value = (val === 'ALL' || val === undefined || val === '') ? null : String(val); }
 function isAchieved(id: string) { return getMilestoneStatus(id) === ProgressStatus.COMPLETED; }
 
+// 根據當前語言取得里程碑描述
+function getMilestoneDescription(milestone: Milestone): string {
+  const currentLocale = localeStore.currentLocale;
+  const localeToLanguageCode: Record<string, keyof typeof milestone.descriptionObject> = {
+    'zh-TW': 'tw',
+    'en-US': 'en',
+  };
+  const languageCode = localeToLanguageCode[currentLocale] || 'tw';
+
+  if (milestone.descriptionObject && milestone.descriptionObject[languageCode]) {
+    return milestone.descriptionObject[languageCode];
+  }
+  return milestone.description;
+}
+
+// 根據當前語言取得里程碑標題
+function getMilestoneTitle(milestone: Milestone): string {
+  // 優先使用 subject，若無則使用 description
+  return milestone.subject || getMilestoneDescription(milestone);
+}
+
+// 根據當前語言取得年齡顯示名稱
+function getAgeDisplayName(age: { displayName: string; displayNameObject?: { tw?: string; en?: string } }): string {
+  const currentLocale = localeStore.currentLocale;
+  if (age.displayNameObject) {
+    const localeToLanguageCode: Record<string, string> = {
+      'zh-TW': 'tw',
+      'en-US': 'en',
+    };
+    const languageCode = localeToLanguageCode[currentLocale] || 'tw';
+    if (age.displayNameObject[languageCode as keyof typeof age.displayNameObject]) {
+      return age.displayNameObject[languageCode as keyof typeof age.displayNameObject] as string;
+    }
+  }
+  return age.displayName;
+}
+
 async function fetchMilestones() {
   try {
     isFetching.value = true;
@@ -349,8 +411,8 @@ async function fetchMilestones() {
     });
     updateAchievedMilestonesFromProgress();
   } catch (e) {
-    console.error('載入里程碑失敗', e);
-    Notify.create({ type: 'negative', message: '載入里程碑資料時發生錯誤', position: 'top' });
+    console.error(t('milestone.loadFailed'), e);
+    Notify.create({ type: 'negative', message: t('milestone.loadFailed'), position: 'top' });
   } finally {
     isFetching.value = false;
   }
@@ -378,7 +440,6 @@ watch(() => userStore.selectedBaby?.id, () => { hasAutoSelectedAge.value = false
 
 function openMilestoneDetail(m: Milestone) { milestoneDetailDialog.value = { open: true, milestone: m }; }
 function closeMilestoneDetail() { milestoneDetailDialog.value.open = false; milestoneDetailDialog.value.milestone = null; }
-const currentMilestoneTitle = computed(() => milestoneDetailDialog.value.milestone?.subject || milestoneDetailDialog.value.milestone?.description || '里程碑');
 
 const flashcardsOfCurrentMilestone = computed<MilestoneFlashcard[]>(() => milestoneDetailDialog.value.milestone?.flashcards || []);
 function flashcardStatusIcon(status: ProgressStatus) { switch (status) { case ProgressStatus.COMPLETED: return 'check_circle'; case ProgressStatus.IN_PROGRESS: return 'play_circle'; default: return 'radio_button_unchecked'; } }

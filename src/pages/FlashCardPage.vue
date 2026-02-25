@@ -1,8 +1,8 @@
 <template>
   <q-page class="q-pa-md milestone-page">
     <div class="page-header">
-      <h2 class="text-h4 text-primary q-mb-md">學習閃卡</h2>
-      <p class="text-subtitle1 q-mb-lg">透過互動卡片學習寶寶發展知識</p>
+      <h2 class="text-h4 text-primary q-mb-md">{{ $t('flashcard.title') }}</h2>
+      <p class="text-subtitle1 q-mb-lg">{{ $t('flashcard.subtitle') }}</p>
     </div>
 
     <!-- 頂部讀取條：切換年齡/分類重載資料時顯示 -->
@@ -23,7 +23,7 @@
         <q-select
           v-model="selectedAgeId"
           :options="ageOptions"
-          label="年齡篩選"
+          :label="$t('flashcard.ageFilter')"
           outlined
           emit-value
           map-options
@@ -76,7 +76,7 @@
               <div class="milestone-image">
                 <q-img :src="flashcard.imageUrl || ''" class="milestone-img" />
                 <q-badge color="primary" class="age-badge"
-                  >{{ flashcard.ageInMonths }}個月</q-badge
+                  >{{ $t('flashcard.ageInMonths', { months: flashcard.ageInMonths }) }}</q-badge
                 >
               </div>
               <div class="milestone-content q-pa-md">
@@ -85,18 +85,18 @@
                 </div>
                 <!-- 開始日期顯示 -->
                 <div v-if="getStartDate(flashcard.id)" class="start-date q-mt-xs">
-                  開始於：{{ formatDate(getStartDate(flashcard.id)) }}
+                  {{ $t('flashcard.startedAt') }}{{ formatDate(getStartDate(flashcard.id)) }}
                 </div>
                 <!-- 已達成日期顯示 -->
                 <div v-if="isAchieved(flashcard.id)" class="achievement-date q-mt-sm">
-                  達成於：{{ formatDate(getAchievementDate(flashcard.id)) }}
+                  {{ $t('flashcard.achievedAt') }}{{ formatDate(getAchievementDate(flashcard.id)) }}
                 </div>
               </div>
               <!-- 只有登入用戶才顯示進度狀態按鈕組 -->
               <div v-if="userStore.isLoggedIn" class="milestone-status q-pa-sm" @click.stop>
                 <div class="row items-center clickable q-pa-xs rounded-borders status-pill" @click="openStatusDialog(flashcard.id)">
                   <StatusIcon :status="getFlashCardStatus(flashcard.id)" :size="14" />
-                  <span class="q-ml-sm text-body2">{{ getProgressStatusDisplayName(getFlashCardStatus(flashcard.id)) }}</span>
+                  <span class="q-ml-sm text-body2">{{ getLocalizedProgressStatus(getFlashCardStatus(flashcard.id)) }}</span>
                   <q-space />
                   <q-icon name="expand_more" size="16px" />
                 </div>
@@ -105,19 +105,13 @@
 
             <div class="milestone-back">
               <div class="milestone-back-content q-pa-md">
-                <div class="text-h6 q-mb-md">詳細資訊</div>
-                <p>{{ flashcard.milestone.description }}</p>
-                <div v-if="flashcard.translations.length > 0" class="q-mt-md">
-                  <div class="text-subtitle2 q-mb-sm">多語言內容：</div>
-                  <div v-for="translation in flashcard.translations" :key="translation.id" class="q-mb-xs">
-                    <q-chip :label="`${translation.languageCode}: ${translation.description}`" />
-                  </div>
-                </div>
+                <div class="text-h6 q-mb-md">{{ $t('flashcard.detailTitle') }}</div>
+                <p>{{ getCardDescription(flashcard) }}</p>
               </div>
               <q-btn
                 flat
                 color="primary"
-                label="返回"
+                :label="$t('common.back')"
                 @click.stop="flipCard(flashcard.id)"
                 class="q-ma-sm"
               />
@@ -129,8 +123,8 @@
 
     <div v-else class="no-milestones q-pa-xl text-center">
       <q-icon name="search_off" size="4rem" color="grey-6" />
-      <p class="text-h6 q-mt-md">沒有找到符合此分類與年齡階段的學習卡片</p>
-      <q-btn color="primary" label="查看全部" @click="resetFilters" class="q-mt-md" />
+      <p class="text-h6 q-mt-md">{{ $t('flashcard.noData') }}</p>
+      <q-btn color="primary" :label="$t('common.viewAll')" @click="resetFilters" class="q-mt-md" />
     </div>
 
     <!-- 載入中遮罩 -->
@@ -138,7 +132,7 @@
       <q-card class="bg-transparent shadow-0">
         <q-card-section class="row items-center justify-center">
           <q-spinner-dots color="primary" size="80px" />
-          <div class="q-mt-md text-white text-center">更新進度中...</div>
+          <div class="q-mt-md text-white text-center">{{ $t('flashcard.updatingProgress') }}</div>
         </q-card-section>
       </q-card>
     </q-dialog>
@@ -146,30 +140,30 @@
     <!-- 狀態選擇彈窗 -->
     <q-dialog v-model="statusDialog.open">
       <q-card style="min-width: 280px">
-        <q-card-section class="text-subtitle1">更新進度狀態</q-card-section>
+        <q-card-section class="text-subtitle1">{{ $t('flashcard.updateStatusTitle') }}</q-card-section>
         <q-separator />
         <q-list bordered padding>
           <q-item clickable v-ripple @click="selectStatus(ProgressStatus.NOT_STARTED)">
             <q-item-section avatar>
               <StatusIcon :status="ProgressStatus.NOT_STARTED" :size="16" />
             </q-item-section>
-            <q-item-section>未開始</q-item-section>
+            <q-item-section>{{ $t('progress.notStarted') }}</q-item-section>
           </q-item>
           <q-item clickable v-ripple @click="selectStatus(ProgressStatus.IN_PROGRESS)">
             <q-item-section avatar>
               <StatusIcon :status="ProgressStatus.IN_PROGRESS" :size="16" />
             </q-item-section>
-            <q-item-section>已開始</q-item-section>
+            <q-item-section>{{ $t('progress.inProgress') }}</q-item-section>
           </q-item>
           <q-item clickable v-ripple @click="selectStatus(ProgressStatus.COMPLETED)">
             <q-item-section avatar>
               <StatusIcon :status="ProgressStatus.COMPLETED" :size="16" />
             </q-item-section>
-            <q-item-section>已完成</q-item-section>
+            <q-item-section>{{ $t('progress.completed') }}</q-item-section>
           </q-item>
         </q-list>
         <q-card-actions align="right">
-          <q-btn flat color="grey-7" label="取消" v-close-popup />
+          <q-btn flat color="grey-7" :label="$t('common.cancel')" v-close-popup />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -178,12 +172,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useUserStore } from 'src/stores/user';
+import { useLocaleStore } from 'src/stores/locale';
 import { Notify } from 'quasar';
 import {
   updateProgressStatus,
   ProgressStatus,
-  getProgressStatusDisplayName,
   type UpdateProgressRequest,
   fetchBabyProgresses,
 } from 'src/api/services/progressService';
@@ -196,15 +191,18 @@ import {
   type CategoryOption
 } from 'src/api/services/flashcardService';
 
+const { t } = useI18n();
+
 // 響應式資料
 const flashcards = ref<FlashCard[]>([]);
 const userStore = useUserStore();
+const localeStore = useLocaleStore();
 const flippedCards = ref<string[]>([]);
 const achievedFlashCards = ref<string[]>([]);
 
 // 年齡相關
 const selectedAgeId = ref<string | null>(null);
-const ageOptions = ref<AgeOption[]>([{ label: '全部', value: null }]);
+const ageOptions = ref<AgeOption[]>([]);
 
 // 分類相關（以 id 為 v-model）
 const categoryOptions = ref<CategoryOption[]>([]);
@@ -216,6 +214,20 @@ const isFetching = ref(false);
 
 // 狀態彈窗狀態
 const statusDialog = ref<{ open: boolean; flashcardId: string | null }>({ open: false, flashcardId: null });
+
+// 取得本地化的進度狀態名稱
+function getLocalizedProgressStatus(status: ProgressStatus): string {
+  switch (status) {
+    case ProgressStatus.NOT_STARTED:
+      return t('progress.notStarted');
+    case ProgressStatus.IN_PROGRESS:
+      return t('progress.inProgress');
+    case ProgressStatus.COMPLETED:
+      return t('progress.completed');
+    default:
+      return t('progress.notStarted');
+  }
+}
 
 // 後端進度 -> Store 進度映射
 function mapProgressResponseToStoreProgress(resp: {
@@ -258,7 +270,7 @@ async function fetchAndSyncBabyProgresses() {
     userStore.updateSelectedBaby({ ...baby, progresses: mapped });
     updateAchievedFlashCardsFromProgress();
   } catch (e) {
-    console.error('同步寶寶進度失敗:', e);
+    console.error(t('flashcard.syncProgressFailed'), e);
   }
 }
 
@@ -276,7 +288,7 @@ function getFlashCardStatus(flashcardId: string): ProgressStatus {
 // 更新 flashCard 狀態
 async function updateFlashCardStatus(flashcardId: string, newStatus: ProgressStatus): Promise<void> {
   if (!userStore.isLoggedIn || !userStore.selectedBaby) {
-    Notify.create({ type: 'warning', message: '請先登入並選擇寶寶', position: 'top' });
+    Notify.create({ type: 'warning', message: t('flashcard.pleaseLogin'), position: 'top' });
     return;
   }
 
@@ -299,15 +311,15 @@ async function updateFlashCardStatus(flashcardId: string, newStatus: ProgressSta
     // 再向後端同步一次，確保最終狀態一致
     await fetchAndSyncBabyProgresses();
 
-    const statusDisplayName = getProgressStatusDisplayName(newStatus);
+    const statusDisplayName = getLocalizedProgressStatus(newStatus);
     Notify.create({
       type: 'positive',
-      message: `學習卡片狀態已更新為：${statusDisplayName}`,
+      message: t('flashcard.statusUpdated', { status: statusDisplayName }),
       position: 'top',
     });
   } catch (error) {
     console.error('Error updating flashcard status:', error);
-    Notify.create({ type: 'negative', message: '更新學習卡片狀態時發生錯誤', position: 'top' });
+    Notify.create({ type: 'negative', message: t('flashcard.updateFailed'), position: 'top' });
   } finally {
     isLoading.value = false;
   }
@@ -425,7 +437,7 @@ async function fetchFlashCards() {
     flashcards.value = data;
   } catch (error) {
     console.error('Error fetching flashcards:', error);
-    Notify.create({ type: 'negative', message: '載入學習卡片失敗', position: 'top' });
+    Notify.create({ type: 'negative', message: t('flashcard.loadFailed'), position: 'top' });
   } finally {
     isFetching.value = false;
   }
@@ -435,9 +447,11 @@ async function fetchFlashCards() {
 async function fetchAgeOptions() {
   try {
     const options = await flashcardService.getAgeOptions();
+    console.log('FlashCardPage fetched age options:', options);
     ageOptions.value = options;
   } catch (error) {
     console.error('Error fetching age options:', error);
+    ageOptions.value = [{ label: t('common.all'), value: null }];
   }
 }
 
@@ -472,6 +486,18 @@ watch(
   }
 );
 
+// 監聯語言變化，重新獲取數據
+watch(
+  () => localeStore.currentLocale,
+  async () => {
+    await Promise.all([
+      fetchAgeOptions(),
+      fetchCategoryOptions(),
+      fetchFlashCards(),
+    ]);
+  }
+);
+
 // 由於 API 已經根據參數進行篩選，直接使用 flashcards 數據並排序
 const filteredFlashCardsByCategory = computed((): FlashCard[] => {
   return [...flashcards.value].sort((a, b) => {
@@ -493,6 +519,28 @@ function flipCard(id: string): void {
 
 function isCardFlipped(id: string): boolean {
   return flippedCards.value.includes(id);
+}
+
+// 根據當前語言取得卡片描述
+function getCardDescription(flashcard: FlashCard): string {
+  const currentLocale = localeStore.currentLocale;
+  // 語言代碼對應表
+  const localeToLanguageCode: Record<string, string> = {
+    'zh-TW': 'tw',
+    'en-US': 'en',
+  };
+  const languageCode = localeToLanguageCode[currentLocale] || 'tw';
+
+  // 優先從 translations 找對應語言的描述
+  const translation = flashcard.translations.find(
+    t => t.languageCode === languageCode
+  );
+  if (translation) {
+    return translation.description;
+  }
+
+  // 如果沒有找到翻譯，使用預設描述
+  return flashcard.milestone.description;
 }
 
 // 年齡導航邏輯
@@ -547,6 +595,7 @@ watch(
     if (ageOptions.value.length > 0) {
       const index = ageOptions.value.findIndex((option) => option.value === selectedAgeId.value);
       currentAgeIndex.value = index !== -1 ? index : 0;
+      console.log('FlashCardPage ageOptions changed, currentAgeIndex:', currentAgeIndex.value, 'options:', ageOptions.value);
     }
   },
   { immediate: true }
@@ -562,7 +611,7 @@ function resetFilters() {
 function formatDate(dateString: string | null): string {
   if (!dateString) return '';
   const date = new Date(dateString);
-  return date.toLocaleDateString('zh-TW');
+  return date.toLocaleDateString(localeStore.currentLocale === 'zh-TW' ? 'zh-TW' : 'en-US');
 }
 
 // 分類 tab 切換時，將「全部」標準化為 null

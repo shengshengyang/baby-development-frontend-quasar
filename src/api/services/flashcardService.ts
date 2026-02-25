@@ -1,6 +1,7 @@
 // flashCard 相關 API 服務
 import apiClient from '../apiClient';
 import { apiConfig } from '../config';
+import { useLocaleStore, type LocaleCode } from 'src/stores/locale';
 
 // 定義 flashCard 數據結構
 export interface FlashCard {
@@ -58,6 +59,17 @@ interface ApiOptionResponse {
   endMonth?: number;
 }
 
+// 將 locale 格式轉換為後端接受的格式
+function getAcceptLanguage(locale: LocaleCode): string {
+  return locale === 'zh-TW' ? 'zh_TW' : 'en_US';
+}
+
+// 取得翻譯後的「全部」標籤
+function getAllLabel(): string {
+  const localeStore = useLocaleStore();
+  return localeStore.currentLocale === 'zh-TW' ? '全部' : 'All';
+}
+
 export const flashcardService = {
   /**
    * 獲取 flashCard 列表
@@ -65,6 +77,9 @@ export const flashcardService = {
    * @returns Promise<FlashCard[]>
    */
   async getFlashCards(params?: FlashCardQueryParams): Promise<FlashCard[]> {
+    const localeStore = useLocaleStore();
+    const language = getAcceptLanguage(localeStore.currentLocale);
+
     try {
       const queryParams = new URLSearchParams();
 
@@ -80,7 +95,9 @@ export const flashcardService = {
         ? `${apiConfig.endpoints.flashcard}?${queryParams.toString()}`
         : apiConfig.endpoints.flashcard;
 
-      const response = await apiClient.get(url);
+      const response = await apiClient.get(url, {
+        headers: { 'Accept-Language': language },
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching flashcard data:', error);
@@ -93,10 +110,16 @@ export const flashcardService = {
    * @returns Promise<AgeOption[]>
    */
   async getAgeOptions(): Promise<AgeOption[]> {
+    const localeStore = useLocaleStore();
+    const language = getAcceptLanguage(localeStore.currentLocale);
+
     try {
-      const response = await apiClient.get(`${apiConfig.endpoints.flashcard}/age-options`);
-      return [
-        { label: '全部', value: null },
+      const response = await apiClient.get(`${apiConfig.endpoints.ageOptions}`, {
+        headers: { 'Accept-Language': language },
+      });
+      console.log('FlashCard age options response:', response.data);
+      const options = [
+        { label: getAllLabel(), value: null },
         ...response.data.map((option: ApiOptionResponse) => ({
           label: option.label,
           value: String(option.value),
@@ -105,10 +128,11 @@ export const flashcardService = {
           endMonth: option.endMonth,
         }))
       ];
+      console.log('Processed age options:', options);
+      return options;
     } catch (error) {
       console.error('Error fetching age options:', error);
-      // 返回默認選項
-      return [{ label: '全部', value: null }];
+      return [{ label: getAllLabel(), value: null }];
     }
   },
 
@@ -117,19 +141,26 @@ export const flashcardService = {
    * @returns Promise<CategoryOption[]>
    */
   async getCategoryOptions(): Promise<CategoryOption[]> {
+    const localeStore = useLocaleStore();
+    const language = getAcceptLanguage(localeStore.currentLocale);
+
     try {
-      const response = await apiClient.get(`${apiConfig.endpoints.flashcard}/category-options`);
-      return [
-        { label: '全部', value: null },
+      const response = await apiClient.get(`${apiConfig.endpoints.categoryOptions}`, {
+        headers: { 'Accept-Language': language },
+      });
+      console.log('FlashCard category options response:', response.data);
+      const options = [
+        { label: getAllLabel(), value: null },
         ...response.data.map((option: ApiOptionResponse) => ({
           label: option.label,
           value: String(option.value),
         }))
       ];
+      console.log('Processed category options:', options);
+      return options;
     } catch (error) {
       console.error('Error fetching category options:', error);
-      // 返回默認選項
-      return [{ label: '全部', value: null }];
+      return [{ label: getAllLabel(), value: null }];
     }
   }
 };

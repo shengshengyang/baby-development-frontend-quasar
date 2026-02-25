@@ -2,9 +2,9 @@
   <q-page class="q-pa-md">
     <div class="column items-center q-gutter-md intro-wrap">
       <q-img src="~assets/baby-logo.png" style="max-width: 180px" ratio="1" class="q-mt-lg" />
-      <div class="text-h5 text-primary text-center">歡迎使用 GOAT Baby</div>
+      <div class="text-h5 text-primary text-center">{{ $t('home.welcome') }}</div>
       <div class="text-body1 text-center q-px-md" style="max-width: 560px">
-        追蹤寶寶的成長里程碑、疫苗時程與練習小卡，讓育兒更安心、更有趣。
+        {{ $t('home.description') }}
       </div>
 
       <div class="row q-col-gutter-md q-mt-md full-width" style="max-width: 900px">
@@ -12,12 +12,12 @@
           <q-card flat bordered class="fit">
             <q-card-section class="text-center">
               <q-icon name="flag" color="primary" size="md" />
-              <div class="text-subtitle1 q-mt-sm">成長里程碑</div>
-              <div class="text-caption text-grey-7 q-mt-xs">了解每個階段的發展重點，並標記完成狀態</div>
+              <div class="text-subtitle1 q-mt-sm">{{ $t('home.milestone.title') }}</div>
+              <div class="text-caption text-grey-7 q-mt-xs">{{ $t('home.milestone.description') }}</div>
             </q-card-section>
             <q-separator />
             <q-card-actions align="center">
-              <q-btn color="primary" label="前往" :to="{ name: 'Milestone' }" flat />
+              <q-btn color="primary" :label="$t('home.milestone.goBtn')" :to="{ name: 'Milestone' }" flat />
             </q-card-actions>
           </q-card>
         </div>
@@ -26,12 +26,12 @@
           <q-card flat bordered class="fit">
             <q-card-section class="text-center">
               <q-icon name="quiz" color="primary" size="md" />
-              <div class="text-subtitle1 q-mt-sm">練習小卡</div>
-              <div class="text-caption text-grey-7 q-mt-xs">以問答小卡陪伴學習與互動</div>
+              <div class="text-subtitle1 q-mt-sm">{{ $t('home.flashcard.title') }}</div>
+              <div class="text-caption text-grey-7 q-mt-xs">{{ $t('home.flashcard.description') }}</div>
             </q-card-section>
             <q-separator />
             <q-card-actions align="center">
-              <q-btn color="primary" label="前往" :to="{ name: 'FlashCard' }" flat />
+              <q-btn color="primary" :label="$t('home.milestone.goBtn')" :to="{ name: 'FlashCard' }" flat />
             </q-card-actions>
           </q-card>
         </div>
@@ -41,30 +41,30 @@
           <q-card flat bordered class="fit">
             <q-card-section class="text-center">
               <q-icon name="vaccines" color="primary" size="md" />
-              <div class="text-subtitle1 q-mt-sm">疫苗時程</div>
-              <div class="text-caption text-grey-7 q-mt-xs">掌握接種時程，守護健康</div>
+              <div class="text-subtitle1 q-mt-sm">{{ $t('home.vaccine.title') }}</div>
+              <div class="text-caption text-grey-7 q-mt-xs">{{ $t('home.vaccine.description') }}</div>
             </q-card-section>
             <q-separator />
             <q-card-actions align="center">
-              <q-btn color="primary" label="前往" :to="{ name: 'Vaccine' }" flat />
+              <q-btn color="primary" :label="$t('home.milestone.goBtn')" :to="{ name: 'Vaccine' }" flat />
             </q-card-actions>
           </q-card>
         </div> -->
       </div>
 
       <div class="q-mt-xl">
-        <q-btn color="primary" unelevated rounded icon="rocket_launch" label="開始使用" :to="{ name: 'Milestone' }" />
+        <q-btn color="primary" unelevated rounded icon="rocket_launch" :label="$t('home.startBtn')" :to="{ name: 'Milestone' }" />
       </div>
 
       <!-- PWA 安裝區域 -->
       <div class="pwa-install-area q-mt-xl q-pa-md fit flex flex-center column">
-        <div class="text-subtitle1 text-primary">安裝到主畫面，體驗更流暢</div>
-        <div class="text-caption text-grey-7 q-mt-xs">離線也能快速開啟，節省載入時間</div>
+        <div class="text-subtitle1 text-primary">{{ $t('home.pwa.title') }}</div>
+        <div class="text-caption text-grey-7 q-mt-xs">{{ $t('home.pwa.description') }}</div>
 
         <!-- Android / 支援 beforeinstallprompt -->
-        <q-btn v-if="showInstallButton" color="primary" outline class="q-mt-md" icon="download" label="安裝到主畫面" @click="installPWA" />
+        <q-btn v-if="showInstallButton" color="primary" outline class="q-mt-md" icon="download" :label="$t('home.pwa.installBtn')" @click="installPWA" />
         <div v-else-if="isInstalled" class="text-positive text-body2 q-mt-sm install-state">
-          已安裝到主畫面，可直接從桌面開啟。
+          {{ $t('home.pwa.installed') }}
         </div>
 
         <!-- iOS 指引 (無 beforeinstallprompt) -->
@@ -73,7 +73,7 @@
             <q-icon name="ios_share" color="primary" />
           </template>
           <div class="text-body2">
-            iPhone：請點擊 Safari 底部 <strong>分享</strong> 按鈕，選擇 <strong>加入主畫面</strong> 完成安裝。
+            {{ $t('home.pwa.iphoneGuide') }}
           </div>
         </q-banner>
       </div>
@@ -83,7 +83,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useQuasar } from 'quasar';
+
+const { t } = useI18n();
 
 // beforeinstallprompt 事件型別定義（Chrome / Edge PWA）
 interface BeforeInstallPromptEvent extends Event {
@@ -144,23 +147,23 @@ function handleAppInstalled() {
 
 function showInstallNotify() {
   $q.notify({
-    message: '安裝 GOAT Baby 到主畫面？',
-    caption: '更快啟動、全螢幕體驗與離線使用',
+    message: t('home.pwa.promptTitle'),
+    caption: t('home.pwa.promptDesc'),
     color: 'primary',
     icon: 'download',
     timeout: 0, // 持續直到使用者操作
     position: 'bottom',
     actions: [
       {
-        label: '稍後',
+        label: t('home.pwa.later'),
         color: 'white',
         handler: () => {
-          // 紀錄稍後���提醒時間（例如 1 天後再次提示）
+          // 紀錄稍後提醒時間（例如 1 天後再次提示）
           localStorage.setItem('pwaInstallSnoozeAt', Date.now().toString());
         },
       },
       {
-        label: '安裝',
+        label: t('home.pwa.install'),
         color: 'yellow',
         handler: () => void installPWA(),
       },

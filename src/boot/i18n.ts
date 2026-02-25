@@ -21,13 +21,24 @@ declare module 'vue-i18n' {
 }
 /* eslint-enable @typescript-eslint/no-empty-object-type */
 
-export default defineBoot(({ app }) => {
-  const i18n = createI18n<{ message: MessageSchema }, MessageLanguages>({
-    locale: 'en-US',
-    legacy: false,
-    messages,
-  });
+// Get saved locale from localStorage or use default
+function getSavedLocale(): MessageLanguages {
+  const saved = localStorage.getItem('locale');
+  if (saved === 'zh-TW' || saved === 'en-US') {
+    return saved;
+  }
+  return 'zh-TW'; // Default to Chinese
+}
 
+const i18n = createI18n<{ message: MessageSchema }, MessageLanguages>({
+  locale: getSavedLocale(),
+  legacy: false,
+  messages,
+});
+
+export default defineBoot(({ app }) => {
   // Set i18n instance on app
   app.use(i18n);
 });
+
+export { i18n };
