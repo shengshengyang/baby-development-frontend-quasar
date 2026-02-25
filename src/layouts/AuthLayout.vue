@@ -1,9 +1,9 @@
 <template>
   <q-layout view="lHh Lpr lFf">
-    <!-- Header 區塊 -->
+    <!-- Header ��塊 -->
     <q-header elevated class="app-header" :class="{ 'header-hidden': !isHeaderVisible }">
       <q-toolbar>
-        <q-toolbar-title class="app-title">GOAT Baby</q-toolbar-title>
+        <q-toolbar-title class="app-title">{{ $t('app.title') }}</q-toolbar-title>
 
         <!-- 在工具欄中間顯示當前選擇的寶寶 -->
         <div v-if="selectedBaby" class="selected-baby">
@@ -21,6 +21,17 @@
         <q-btn flat round icon="person" @click="goToUserPage" />
         <!-- 若已登入，則顯示 Logout 按鈕 -->
         <q-btn v-if="userStore.isLoggedIn" flat round icon="exit_to_app" @click="logout" />
+        <!-- 語言切換按鈕 -->
+        <q-btn
+          flat
+          round
+          dense
+          class="locale-toggle"
+          @click="toggleLocale"
+        >
+          <span class="locale-label">{{ localeStore.currentLocale === 'zh-TW' ? '中' : 'EN' }}</span>
+          <q-tooltip>{{ localeStore.currentLocale === 'zh-TW' ? $t('locale.switchToEn') : $t('locale.switchToZh') }}</q-tooltip>
+        </q-btn>
         <!-- 主題切換按鈕 -->
         <q-btn
           round
@@ -29,7 +40,7 @@
           class="theme-toggle"
           @click="toggleDarkMode"
         >
-          <q-tooltip>{{ isDarkMode ? '切換到日間模式' : '切換到夜間模式' }}</q-tooltip>
+          <q-tooltip>{{ isDarkMode ? $t('theme.switchToLight') : $t('theme.switchToDark') }}</q-tooltip>
         </q-btn>
       </q-toolbar>
     </q-header>
@@ -38,7 +49,7 @@
     <q-dialog v-model="showBabySelector">
       <q-card style="min-width: 300px">
         <q-card-section>
-          <div class="text-h6">選擇寶寶</div>
+          <div class="text-h6">{{ $t('babySelector.title') }}</div>
         </q-card-section>
 
         <q-card-section>
@@ -67,8 +78,8 @@
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat label="新增寶寶" color="primary" @click="addNewBaby" v-close-popup />
-          <q-btn flat label="關閉" color="primary" v-close-popup />
+          <q-btn flat :label="$t('babySelector.addBaby')" color="primary" @click="addNewBaby" v-close-popup />
+          <q-btn flat :label="$t('babySelector.close')" color="primary" v-close-popup />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -89,11 +100,11 @@
         active-color="primary"
         indicator-color="primary"
       >
-        <q-route-tab :to="{ name: 'Home' }" icon="home" label="首頁" />
-        <q-route-tab :to="{ name: 'Milestone' }" icon="flag" label="里程碑" />
-        <q-route-tab :to="{ name: 'FlashCard' }" icon="quiz" label="小卡" />
+        <q-route-tab :to="{ name: 'Home' }" icon="home" :label="$t('nav.home')" />
+        <q-route-tab :to="{ name: 'Milestone' }" icon="flag" :label="$t('nav.milestone')" />
+        <q-route-tab :to="{ name: 'FlashCard' }" icon="quiz" :label="$t('nav.flashcard')" />
         <!-- 疫苗標籤 (暫時隱藏) -->
-        <!-- <q-route-tab :to="{ name: 'Vaccine' }" icon="vaccines" label="疫苗" /> -->
+        <!-- <q-route-tab :to="{ name: 'Vaccine' }" icon="vaccines" :label="$t('nav.vaccine')" /> -->
       </q-tabs>
     </q-footer>
 
@@ -117,11 +128,15 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useUserStore } from 'src/stores/user';
+import { useLocaleStore } from 'src/stores/locale';
 import { Dark } from 'quasar';
 
+const { t } = useI18n();
 const router = useRouter();
 const userStore = useUserStore();
+const localeStore = useLocaleStore();
 const showBabySelector = ref(false);
 
 // 取得選定的寶寶
@@ -207,6 +222,14 @@ function initTheme() {
 // 頁面加載時初始化主題
 initTheme();
 
+// 初始化語言設定
+localeStore.initLocale();
+
+// 語言切換
+function toggleLocale() {
+  localeStore.toggleLocale();
+}
+
 async function goToUserPage() {
   // 如果已登入則導向編輯頁面，否則導向登入頁面
   if (userStore.isLoggedIn) {
@@ -241,13 +264,15 @@ function calculateAgeText(birthDateStr: string): string {
 
   if (months < 1) {
     const days = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
-    return `${days} 天`;
+    return t('babySelector.days', { days });
   } else if (months < 24) {
-    return `${months} 個月`;
+    return t('babySelector.months', { months });
   } else {
     const years = Math.floor(months / 12);
     const remainingMonths = months % 12;
-    return remainingMonths > 0 ? `${years} 歲 ${remainingMonths} 個月` : `${years} 歲`;
+    return remainingMonths > 0
+      ? t('babySelector.yearsMonths', { years, months: remainingMonths })
+      : t('babySelector.years', { years });
   }
 }
 
@@ -296,6 +321,20 @@ onMounted(() => {
   }
 }
 
+// 語言切換按鈕
+.locale-toggle {
+  font-weight: 600;
+  min-width: 36px;
+
+  .locale-label {
+    font-size: 0.875rem;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
 // Header 滾動顯示/隱藏效果
 .q-header {
   transition: transform 0.3s ease;
@@ -324,7 +363,7 @@ onMounted(() => {
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.06);
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); // 增加額外緩衝
-  padding-top: 6px; // 上方留白，保持內��垂直置中
+  padding-top: 6px; // 上方留白，保持內容垂直置中
   min-height: 72px; // 統一較高點的高度，提升可點擊性
 
   .footer-tabs {
@@ -361,14 +400,29 @@ onMounted(() => {
   .q-page { background-color: $bg-dark; }
 
   // 夜間主題下的底部欄（毛玻璃）
-  .q-footer {
-    background-color: rgba(16, 18, 20, 0.7);
+  .q-footer,
+  .footer-bar {
+    background-color: rgba(30, 30, 40, 0.9) !important;
     backdrop-filter: saturate(140%) blur(12px);
     -webkit-backdrop-filter: saturate(140%) blur(12px);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.3);
+    color: rgba(240, 230, 213, 1);
 
-    .footer-tabs { color: rgba(255, 255, 255, 0.8); }
+    .footer-tabs {
+      color: rgba(240, 230, 213, 0.85) !important;
+
+      .q-tab {
+        color: rgba(240, 230, 213, 0.7);
+
+        &--active {
+          .q-tab__label,
+          .q-tab__icon {
+            color: var(--q-primary) !important;
+          }
+        }
+      }
+    }
   }
 }
 

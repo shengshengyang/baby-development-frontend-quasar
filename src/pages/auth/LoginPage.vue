@@ -5,26 +5,26 @@
         <!-- 卡片上方 Logo 與標題 -->
         <q-card-section class="text-center card-header">
           <q-img src="~assets/baby-logo.png" class="logo" contain />
-          <div class="card-title">會員登入</div>
+          <div class="card-title">{{ $t('login.title') }}</div>
         </q-card-section>
 
         <!-- 輸入欄位 -->
         <q-card-section>
-          <q-input v-model="email" label="電子信箱" type="email" class="q-mb-md" :disable="isLoading" />
-          <q-input v-model="password" label="密碼" type="password" class="q-mb-md" :disable="isLoading" />
+          <q-input v-model="email" :label="$t('login.email')" type="email" class="q-mb-md" :disable="isLoading" />
+          <q-input v-model="password" :label="$t('login.password')" type="password" class="q-mb-md" :disable="isLoading" />
         </q-card-section>
 
         <!-- 登入按鈕 -->
         <q-card-actions align="center">
-          <q-btn label="登入" color="primary" @click="onLogin" class="full-width" :loading="isLoading" :disable="isLoading" />
+          <q-btn :label="$t('login.loginBtn')" color="primary" @click="onLogin" class="full-width" :loading="isLoading" :disable="isLoading" />
         </q-card-actions>
 
         <!-- 忘記密碼 / 註冊連結 -->
         <q-card-section class="text-center">
           <div class="auth-links">
-            <q-btn flat label="忘記密碼" color="primary" @click="onForgotPassword" :disable="isLoading" />
+            <q-btn flat :label="$t('login.forgotPassword')" color="primary" @click="onForgotPassword" :disable="isLoading" />
             <span class="separator">|</span>
-            <q-btn flat label="註冊" color="primary" @click="onRegister" :disable="isLoading" />
+            <q-btn flat :label="$t('login.register')" color="primary" @click="onRegister" :disable="isLoading" />
           </div>
         </q-card-section>
 
@@ -39,6 +39,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { apiPost } from 'src/api/apiHelper';
 import { apiConfig } from 'src/api/config';
 import { useUserStore } from 'src/stores/user';
@@ -46,6 +47,7 @@ import type { UserData, Progress as StoreProgress } from 'src/stores/user';
 import { ProgressStatus } from 'src/api/services/progressService';
 import { Notify } from 'quasar';
 
+const { t } = useI18n();
 const router = useRouter();
 const userStore = useUserStore();
 
@@ -139,11 +141,11 @@ async function onLogin() {
     const userData = convertLoginResponseToUserData(result);
     userStore.setUser(userData);
     await router.push('/milestone').catch((err) => {
-      if (err.name !== 'NavigationDuplicated') console.error('導航錯誤:', err);
+      if (err.name !== 'NavigationDuplicated') console.error('Navigation error:', err);
     });
   } catch (error) {
-    console.error('登入失敗:', error);
-    Notify.create({ type: 'negative', message: '登入失敗，請確認帳號或密碼', position: 'top' });
+    console.error('Login failed:', error);
+    Notify.create({ type: 'negative', message: t('login.loginFailed'), position: 'top' });
   } finally {
     isLoading.value = false;
   }
@@ -151,11 +153,11 @@ async function onLogin() {
 
 function onForgotPassword() {
   if (isLoading.value) return;
-  router.push('/auth/forgot-password').catch((err) => { if (err.name !== 'NavigationDuplicated') console.error('導航錯誤:', err); });
+  router.push('/auth/forgot-password').catch((err) => { if (err.name !== 'NavigationDuplicated') console.error('Navigation error:', err); });
 }
 function onRegister() {
   if (isLoading.value) return;
-  router.push('/auth/register').catch((err) => { if (err.name !== 'NavigationDuplicated') console.error('導航錯誤:', err); });
+  router.push('/auth/register').catch((err) => { if (err.name !== 'NavigationDuplicated') console.error('Navigation error:', err); });
 }
 </script>
 
